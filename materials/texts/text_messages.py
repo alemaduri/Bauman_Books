@@ -1,0 +1,1 @@
+insert_api_key_text = 'Please insert BOT_API_KEY via running setup.py'
