@@ -3,7 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher, types
 
 #from config_reader import config
-
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
@@ -12,8 +12,9 @@ from aiogram.dispatcher.filters import Text
 logging.basicConfig(level=logging.INFO)
 # Объект бота
 bot = Bot(token="6577349724:AAFhGJJVmqWvUVDsqlAOFwvSt29CiXYlvE8")
+storage = MemoryStorage()
 # Диспетчер
-dp = Dispatcher(bot)
+dp = Dispatcher(bot, storage=storage)
 
 
 @dp.message_handler(commands=["answer"])
@@ -36,39 +37,22 @@ async def cmd_start(message: types.Message):
     )
     await message.answer("Что вы хотите сделать?", reply_markup=keyboard)
 
-
-# from aiogram import F
-
-
-# @dp.message(F.text.lower() == "посмотреть объявления")
-# async def list_everything(message: types.Message):
-#     await message.answer("Отличный выбор!")
-
-
 class Form(StatesGroup):
     book_name = State()
-
-
-# @dp.message(F.text.lower() == "создать объявление")
-# async def make_listing(message: types.Message):
-#     await Form.book_name.set()
-#     await message.reply("Введите название книги")
-#     user_text = message.text
-#     # await message.reply(user_text)
-#     # await State.finish()
-
-# @dp.message_handler(state=Form.book_name)
-# async def process_name(message: types.Message, state: FSMContext):
-#     async with state.proxy() as data:
-#         data['name'] = message.text
-
-#     await Form.next()
-#     await message.reply("Введите название книги")
+    book_description = State()
 
 @dp.message_handler(Text(equals="Создать объявление"))
 async def listing_start(message: types.Message):
     await Form.book_name.set()
     await message.reply("Введите название книги")
+
+@dp.message_handler(state=Form.book_name)
+async def process_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['book_name'] = message.text
+    await message.answer(data['book_name'])
+    #await state.finish()
+    await Form.next()
 
 
 # Запуск процесса поллинга новых апдейтов
