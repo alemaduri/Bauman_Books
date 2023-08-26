@@ -51,12 +51,13 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     await message.reply('ОК')
 
 @dp.message_handler(Text(equals="Посмотреть объявления"))
-async def listing_start(message: types.Message):
+async def listing_display(message: types.Message):
     await Display_Listings.all_listings.set()
     await message.answer("Все активные объявления:")
 
     await all_listings_display(message, state=Display_Listings.all_listings)
 
+@dp.message_handler(state=Display_Listings.all_listings)
 async def all_listings_display(message: types.Message, state: FSMContext):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
@@ -80,7 +81,7 @@ async def invalid_id(message: types.Message):
     await message.answer("Напиши ID или напиши /cancel")
     
 @dp.message_handler(lambda message: message.text.isdigit(), state=Display_Listings.listing)
-async def listing_handle(message: types.Message):
+async def listing_handle(message: types.Message, state: FSMContext):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
     book_id_message = message.text
@@ -104,7 +105,42 @@ async def listing_handle(message: types.Message):
             media = [types.InputMediaPhoto(media=photo[0]) for photo in book_photos]
             await bot.send_media_group(message.from_user.id, media)
 
+        async with state.proxy() as data:
+            data['user_id'] = user_id
+            data['book_id'] = book_id
+
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton("Написать владельцу ✅", callback_data="dm_owner"))
+        keyboard.add(InlineKeyboardButton("Назад в каталог ❌", callback_data="go_back"))
+        await message.answer("-----------Выберите действие-----------", reply_markup=keyboard)
+
     connection.close()
+
+@dp.callback_query_handler(lambda button: button.data in ["dm_owner", "go_back"], state=Display_Listings.listing)
+async def go_back_to_listing_start(button: types.CallbackQuery, state: FSMContext):
+    button_data = button.data
+
+    if button_data == "dm_owner":
+        async with state.proxy() as data:
+            user_id = data.get('user_id')
+            book_id = data.get('book_id')
+        connection = sqlite3.connect("books.db")
+        cursor = connection.cursor()
+        cursor.execute("SELECT nickname FROM Users WHERE user_id=?", (user_id,))
+        username = cursor.fetchone()[0]
+
+        await bot.send_message(user_id, f"Напишите владельцу! @{username}")
+
+        cursor.execute("DELETE FROM Books WHERE book_id=?", (book_id,))
+        cursor.execute("DELETE FROM Photos WHERE book_id=?", (book_id,)) # Я НЕ ЕБУ ПОЧЕМУ ON CASCADE НЕ РАБОТАЕТ
+        connection.commit()
+
+        connection.close()
+        await state.finish()
+    elif button_data =="go_back":
+        await state.finish()
+        await listing_display(button.message) 
+   
 
 @dp.message_handler(Text(equals="Создать объявление"))
 async def listing_start(message: types.Message):
