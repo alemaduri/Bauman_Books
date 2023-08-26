@@ -53,14 +53,57 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 @dp.message_handler(Text(equals="Посмотреть объявления"))
 async def listing_start(message: types.Message):
     await Display_Listings.all_listings.set()
-
-@dp.message_handler(state=Display_Listings.all_listings)
-async def all_listings_display(message: types.Message, state: FSMContext):
     await message.answer("Все активные объявления:")
+
+    await all_listings_display(message, state=Display_Listings.all_listings)
+
+async def all_listings_display(message: types.Message, state: FSMContext):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
+    cursor.execute("SELECT * FROM Books")
+    books_data = cursor.fetchall()
 
-    connection.commit()
+    info_message = f"----------------------------------\n"
+    for book in books_data:
+        book_id, user_id, book_name, description = book
+        info_message += f"ID книги: {book_id}, Название книги: {book_name}\n"
+
+    await message.answer(info_message, parse_mode=types.ParseMode.MARKDOWN)
+
+    connection.close()
+
+    await message.answer("Напишите ID интересующей книги")
+    await Display_Listings.next()
+
+@dp.message_handler(lambda message: not message.text.isdigit(), state=Display_Listings.listing)
+async def invalid_id(message: types.Message):
+    await message.answer("Напиши ID или напиши /cancel")
+    
+@dp.message_handler(lambda message: message.text.isdigit(), state=Display_Listings.listing)
+async def listing_handle(message: types.Message):
+    connection = sqlite3.connect("books.db")
+    cursor = connection.cursor()
+    book_id_message = message.text
+    cursor.execute("SELECT * FROM Books WHERE book_id=?", book_id_message)
+    book_info = cursor.fetchone()
+    if not book_info:
+        await message.answer("Напиши существующий или напиши /cancel")
+    else:
+        book_id, user_id, book_name, book_desc = book_info
+
+        cursor.execute("SELECT photo_tg_id FROM Photos WHERE book_id=?", book_id_message)
+        book_photos = cursor.fetchall()
+
+        info_message = f"----------------------------------\n"
+        info_message += f"ID книги: {book_id}, Название книги: {book_name}\n"
+        info_message += f"Описание: {book_desc}\n"
+
+        await message.answer(info_message, parse_mode=types.ParseMode.MARKDOWN)
+
+        if book_photos:
+            media = [types.InputMediaPhoto(media=photo[0]) for photo in book_photos]
+            await bot.send_media_group(message.from_user.id, media)
+
     connection.close()
 
 @dp.message_handler(Text(equals="Создать объявление"))
