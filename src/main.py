@@ -314,6 +314,12 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
                         STARTING_COINS,
                     ),
                 )
+            if username_check:
+                cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
+                coins = cursor.fetchone()[0]
+                cursor.execute(
+                    "UPDATE Users SET coins=? WHERE user_id=?", (coins + 1, user_id)
+                )
             cursor.execute(
                 "INSERT INTO Books (user_id, book_name, description) VALUES(?, ?, ?)",
                 (user_id, book_name, book_desc),
