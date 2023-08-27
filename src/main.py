@@ -210,7 +210,10 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
             book_name = data['book_name']
             book_desc = data['book_desc']
             book_photos = data.get('book_photos', [])
-            cursor.execute("INSERT INTO Users (user_id, name, nickname) VALUES(?, ?, ?)", (user_id, button.from_user.first_name, button.from_user.username))
+            cursor.execute("SELECT EXISTS(SELECT 1 FROM Users WHERE user_id=?)", (user_id,))
+            username_check = cursor.fetchone()[0]
+            if not username_check:
+                cursor.execute("INSERT INTO Users (user_id, name, nickname) VALUES(?, ?, ?)", (user_id, button.from_user.first_name, button.from_user.username))
             cursor.execute("INSERT INTO Books (user_id, book_name, description) VALUES(?, ?, ?)", (user_id, book_name, book_desc))
             book_id = cursor.lastrowid
             for photo_tg_id in book_photos:
