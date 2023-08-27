@@ -7,13 +7,36 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import aiogram.utils.markdown as md
+from aiogram.types import ParseMode
 
 import sqlite3
+
+STARTING_COINS = 3
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=config.bot_token.get_secret_value())
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
+
+
+@dp.message_handler(commands=["info"])
+async def display_info(message: types.Message):
+    await bot.send_message(
+        message.chat.id,
+        md.text(
+            md.text(f"Привет, {message.from_user.first_name}! Это *Bauman Books*"),
+            md.text("Доступны следующие *команды:*"),
+            md.text("/cancel - отмена какого-либо действия"),
+            md.text(
+                "/finish - заверешение отправки сообщений в режиме создания объявлений"
+            ),
+            md.text("/info - отображение информации"),
+            md.text("/coins - отображение количества Book Coins"),
+            sep="\n",
+        ),
+        parse_mode=ParseMode.MARKDOWN,
+    )
 
 
 @dp.message_handler(commands=["start"])
@@ -42,6 +65,17 @@ class Create_Listing(StatesGroup):
 class Display_Listings(StatesGroup):
     all_listings = State()
     listing = State()
+
+
+@dp.message_handler(commands="coins")
+async def display_coins(message: types.Message):
+    connection = sqlite3.connect("books.db")
+    cursor = connection.cursor()
+    cursor.execute("SELECT coins FROM Users WHERE user_id=?", (message.from_user.id,))
+    coins = cursor.fetchone()[0]
+    await message.answer(
+        f"Ваше количество монет: *{coins}*", parse_mode=types.ParseMode.MARKDOWN
+    )
 
 
 @dp.message_handler(state="*", commands="cancel")
@@ -145,25 +179,41 @@ async def go_back_to_listing_start(button: types.CallbackQuery, state: FSMContex
     if button_data == "dm_owner":
         async with state.proxy() as data:
             user_id = data.get("user_id")
-            book_id = data.get("book_id")
         connection = sqlite3.connect("books.db")
         cursor = connection.cursor()
-        cursor.execute("SELECT nickname FROM Users WHERE user_id=?", (user_id,))
-        username = cursor.fetchone()[0]
-
-        await bot.send_message(user_id, f"Напишите владельцу! @{username}")
-
-        cursor.execute("DELETE FROM Books WHERE book_id=?", (book_id,))
-        cursor.execute(
-            "DELETE FROM Photos WHERE book_id=?", (book_id,)
-        )  # Я НЕ ЕБУ ПОЧЕМУ ON CASCADE НЕ РАБОТАЕТ
-        connection.commit()
-
-        connection.close()
-        await state.finish()
+        cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
+        coins = cursor.fetchone()[0]
+        if coins > 0:
+            coins -= 1
+            cursor.execute("UPDATE Users SET coins=? WHERE user_id=?", (coins, user_id))
+            connection.commit()
+            await enough_coins(state, cursor, connection)
+        else:
+            connection.close()
+            await bot.send_message(user_id, "У вас не хватает монет :(")
+            await state.finish()
     elif button_data == "go_back":
         await state.finish()
         await listing_display(button.message)
+
+
+async def enough_coins(state: FSMContext, cursor, connection):
+    async with state.proxy() as data:
+        user_id = data.get("user_id")
+        book_id = data.get("book_id")
+    cursor.execute("SELECT nickname FROM Users WHERE user_id=?", (user_id,))
+    username = cursor.fetchone()[0]
+
+    await bot.send_message(user_id, f"Напишите владельцу! @{username}")
+
+    cursor.execute("DELETE FROM Books WHERE book_id=?", (book_id,))
+    cursor.execute(
+        "DELETE FROM Photos WHERE book_id=?", (book_id,)
+    )  # Я НЕ ЕБУ ПОЧЕМУ ON CASCADE НЕ РАБОТАЕТ
+    connection.commit()
+
+    connection.close()
+    await state.finish()
 
 
 @dp.message_handler(Text(equals="Создать объявление"))
@@ -187,7 +237,7 @@ async def process_desc(message: types.Message, state: FSMContext):
     await Create_Listing.next()
     await message.reply("Пришлите фото книг")
     await message.answer(
-        "После отправки всех необхоимых фото напишите /finish для завершения"
+        "После отправки всех необходимых фото напишите /finish для завершения"
     )
 
 
@@ -256,8 +306,13 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
             username_check = cursor.fetchone()[0]
             if not username_check:
                 cursor.execute(
-                    "INSERT INTO Users (user_id, name, nickname) VALUES(?, ?, ?)",
-                    (user_id, button.from_user.first_name, button.from_user.username),
+                    "INSERT INTO Users (user_id, name, nickname, coins) VALUES(?, ?, ?, ?)",
+                    (
+                        user_id,
+                        button.from_user.first_name,
+                        button.from_user.username,
+                        STARTING_COINS,
+                    ),
                 )
             cursor.execute(
                 "INSERT INTO Books (user_id, book_name, description) VALUES(?, ?, ?)",
