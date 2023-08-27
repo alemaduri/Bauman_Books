@@ -106,7 +106,7 @@ async def all_listings_display(message: types.Message, state: FSMContext):
 
     info_message = f"----------------------------------\n"
     for book in books_data:
-        book_id, user_id, book_name, description = book
+        book_id, user_id, book_name, description, book_status = book
         info_message += f"ID книги: {book_id}, Название книги: {book_name}\n"
 
     await message.answer(info_message, parse_mode=types.ParseMode.MARKDOWN)
@@ -136,7 +136,7 @@ async def listing_handle(message: types.Message, state: FSMContext):
     if not book_info:
         await message.answer("Напиши существующий или напиши /cancel")
     else:
-        book_id, user_id, book_name, book_desc = book_info
+        book_id, user_id, book_name, book_desc, book_status = book_info
 
         cursor.execute(
             "SELECT photo_tg_id FROM Photos WHERE book_id=?", (book_id_message,)
