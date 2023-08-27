@@ -85,14 +85,14 @@ async def listing_handle(message: types.Message, state: FSMContext):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
     book_id_message = message.text
-    cursor.execute("SELECT * FROM Books WHERE book_id=?", book_id_message)
+    cursor.execute("SELECT * FROM Books WHERE book_id=?", (book_id_message,))
     book_info = cursor.fetchone()
     if not book_info:
         await message.answer("Напиши существующий или напиши /cancel")
     else:
         book_id, user_id, book_name, book_desc = book_info
 
-        cursor.execute("SELECT photo_tg_id FROM Photos WHERE book_id=?", book_id_message)
+        cursor.execute("SELECT photo_tg_id FROM Photos WHERE book_id=?", (book_id_message,))
         book_photos = cursor.fetchall()
 
         info_message = f"----------------------------------\n"
