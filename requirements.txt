@@ -13,3 +13,4 @@ multidict==6.0.4
 pytz==2023.3
 yarl==1.9.2
 python-dotenv==0.21.1
+pydantic_settings=2.0.3

@@ -1,18 +1,17 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
-#from config_reader import config
+from config_reader import config
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
-from aiogram.utils import markdown
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 import sqlite3
 
 logging.basicConfig(level=logging.INFO)
-bot = Bot(token="6577349724:AAFhGJJVmqWvUVDsqlAOFwvSt29CiXYlvE8")
+bot = Bot(token=config.bot_token.get_secret_value())
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
@@ -35,6 +34,7 @@ class Create_Listing(StatesGroup):
     book_name = State()
     book_description = State()
     book_photo = State()
+    book_photos_done = State()
 
 class Display_Listings(StatesGroup):
     all_listings = State()
@@ -48,7 +48,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         return
 
     await state.finish()
-    await message.reply('ОК')
+    await message.reply('Отмена')
 
 @dp.message_handler(Text(equals="Посмотреть объявления"))
 async def listing_display(message: types.Message):
@@ -78,7 +78,7 @@ async def all_listings_display(message: types.Message, state: FSMContext):
 
 @dp.message_handler(lambda message: not message.text.isdigit(), state=Display_Listings.listing)
 async def invalid_id(message: types.Message):
-    await message.answer("Напиши ID или напиши /cancel")
+    await message.answer("Напишите ID или напиши /cancel")
     
 @dp.message_handler(lambda message: message.text.isdigit(), state=Display_Listings.listing)
 async def listing_handle(message: types.Message, state: FSMContext):
@@ -170,6 +170,10 @@ async def process_photos(message: types.Message, state: FSMContext):
         data['book_photos'].append(photo.file_id)
 
     await message.reply('Пришлите еще фото или напишите /finish для завершения')
+
+# @dp.message_handler(state=Create_Listing.book_photos_done)
+# async def process_photos_after(message: types.Message):
+#     await message.reply('Пришлите еще фото или напишите /finish для завершения')
 
 @dp.message_handler(commands=['finish'], state=Create_Listing.book_photo)
 async def finish_listing(message: types.Message, state: FSMContext):
