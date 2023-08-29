@@ -65,6 +65,7 @@ class Create_Listing(StatesGroup):
 class Display_Listings(StatesGroup):
     all_listings = State()
     listing = State()
+    self_listing = State()
 
 
 @dp.message_handler(commands="coins")
@@ -90,19 +91,26 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(Text(equals="Посмотреть объявления"))
-async def listing_display(message: types.Message):
+async def listing_display(message: types.Message, mine=0):
     await Display_Listings.all_listings.set()
-    await message.answer("Все активные объявления:")
+    if mine:
+        await message.answer("Ваши объявления:")
+    else:
+        await message.answer("Все активные объявления:")
 
-    await all_listings_display(message, state=Display_Listings.all_listings)
+    await all_listings_display(message, Display_Listings.all_listings, mine)
 
 
 @dp.message_handler(state=Display_Listings.all_listings)
-async def all_listings_display(message: types.Message, state: FSMContext):
+async def all_listings_display(message: types.Message, state: FSMContext, mine=0):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
-    cursor.execute("SELECT * FROM Books")
-    books_data = cursor.fetchall()
+    if mine:
+        cursor.execute("SELECT * FROM Books WHERE user_id=?", (mine,))
+        books_data = cursor.fetchall()
+    else:
+        cursor.execute("SELECT * FROM Books")
+        books_data = cursor.fetchall()
 
     info_message = f"----------------------------------\n"
     for book in books_data:
@@ -114,7 +122,10 @@ async def all_listings_display(message: types.Message, state: FSMContext):
     connection.close()
 
     await message.answer("Напишите ID интересующей книги")
-    await Display_Listings.next()
+    if mine:
+        await Display_Listings.self_listing.set()
+    else:
+        await Display_Listings.next()
 
 
 @dp.message_handler(
@@ -125,13 +136,21 @@ async def invalid_id(message: types.Message):
 
 
 @dp.message_handler(
-    lambda message: message.text.isdigit(), state=Display_Listings.listing
+    lambda message: message.text.isdigit(),
+    state=[Display_Listings.listing, Display_Listings.self_listing],
 )
 async def listing_handle(message: types.Message, state: FSMContext):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
     book_id_message = message.text
-    cursor.execute("SELECT * FROM Books WHERE book_id=?", (book_id_message,))
+    current_state = await state.get_state()
+    if current_state == "Display_Listings:listing":
+        cursor.execute("SELECT * FROM Books WHERE book_id=?", (book_id_message,))
+    elif current_state == "Display_Listings:self_listing":
+        cursor.execute(
+            "SELECT * FROM Books WHERE book_id=? AND user_id=?",
+            (book_id_message, message.from_id),
+        )
     book_info = cursor.fetchone()
     if not book_info:
         await message.answer("Напиши существующий или напиши /cancel")
@@ -156,11 +175,17 @@ async def listing_handle(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data["user_id"] = user_id
             data["book_id"] = book_id
-
         keyboard = InlineKeyboardMarkup()
-        keyboard.add(
-            InlineKeyboardButton("Написать владельцу ✅", callback_data="dm_owner")
-        )
+        if current_state == "Display_Listings:listing":
+            keyboard.add(
+                InlineKeyboardButton("Написать владельцу ✅", callback_data="dm_owner")
+            )
+        elif current_state == "Display_Listings:self_listing":
+            keyboard.add(
+                InlineKeyboardButton(
+                    "Удалить объявление", callback_data="delete_own_listing"
+                )
+            )
         keyboard.add(InlineKeyboardButton("Назад в каталог ❌", callback_data="go_back"))
         await message.answer(
             "-----------Выберите действие-----------", reply_markup=keyboard
@@ -170,22 +195,24 @@ async def listing_handle(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query_handler(
-    lambda button: button.data in ["dm_owner", "go_back"],
-    state=Display_Listings.listing,
+    lambda button: button.data in ["dm_owner", "go_back", "delete_own_listing"],
+    state=[Display_Listings.listing, Display_Listings.self_listing],
 )
 async def go_back_to_listing_start(button: types.CallbackQuery, state: FSMContext):
     button_data = button.data
+
+    current_state = await state.get_state()
 
     if button_data == "dm_owner":
         async with state.proxy() as data:
             user_id = data.get("user_id")
         connection = sqlite3.connect("books.db")
         cursor = connection.cursor()
-        cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
+        cursor.execute(
+            "SELECT coins FROM Users WHERE user_id=?", (button.message.chat.id,)
+        )
         coins = cursor.fetchone()[0]
-        cursor.execute("SELECT user_id FROM Users WHERE user_id=?", (user_id,))
-        user_id_from_db = cursor.fetchone()[0]
-        if user_id_from_db == user_id:
+        if button.message.chat.id == user_id:
             connection.close()
             await bot.send_message(
                 user_id, "Вы не можете забрать книгу у самого себя :("
@@ -193,26 +220,56 @@ async def go_back_to_listing_start(button: types.CallbackQuery, state: FSMContex
             await state.finish()
         elif coins > 0:
             coins -= 1
-            cursor.execute("UPDATE Users SET coins=? WHERE user_id=?", (coins, user_id))
+            cursor.execute(
+                "UPDATE Users SET coins=? WHERE user_id=?",
+                (coins, button.message.chat.id),
+            )
             connection.commit()
-            await enough_coins(state, cursor, connection)
+            await enough_coins(button, state, cursor, connection)
         else:
             connection.close()
-            await bot.send_message(user_id, "У вас не хватает монет :(")
+            await bot.send_message(button.message.chat.id, "У вас не хватает монет :(")
             await state.finish()
     elif button_data == "go_back":
         await state.finish()
-        await listing_display(button.message)
+        if current_state == "Display_Listings:listing":
+            await listing_display(button.message)
+        elif current_state == "Display_Listings:self_listing":
+            await listing_display(button.message, button.from_user.id)
+    elif button_data == "delete_own_listing":
+        async with state.proxy() as data:
+            book_id = data.get("book_id")
+        connection = sqlite3.connect("books.db")
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT coins FROM Users WHERE user_id=?", (button.message.chat.id,)
+        )
+        coins = cursor.fetchone()[0]
+        if coins > 0:
+            coins -= 1
+            cursor.execute("DELETE FROM Books WHERE book_id=?", (book_id,))
+            cursor.execute(
+                "UPDATE Users SET coins=? WHERE user_id=?",
+                (coins, button.message.chat.id),
+            )
+            await bot.send_message(button.message.chat.id, "Объявление удалено")
+            connection.commit()
+            await state.finish()
+        else:
+            await bot.send_message(button.message.chat.id, "У вас не хватает монет :(")
+        connection.close()
 
 
-async def enough_coins(state: FSMContext, cursor, connection):
+async def enough_coins(
+    button: types.CallbackQuery, state: FSMContext, cursor, connection
+):
     async with state.proxy() as data:
         user_id = data.get("user_id")
         book_id = data.get("book_id")
     cursor.execute("SELECT nickname FROM Users WHERE user_id=?", (user_id,))
     username = cursor.fetchone()[0]
 
-    await bot.send_message(user_id, f"Напишите владельцу! @{username}")
+    await bot.send_message(button.from_user.id, f"Напишите владельцу! @{username}")
 
     cursor.execute("DELETE FROM Books WHERE book_id=?", (book_id,))
     cursor.execute(
@@ -258,13 +315,6 @@ async def process_photos(message: types.Message, state: FSMContext):
             data["book_photos"] = []
         photo = message.photo[-1]
         data["book_photos"].append(photo.file_id)
-
-    # await message.reply('Пришлите еще фото или напишите /finish для завершения')
-
-
-# @dp.message_handler(state=Create_Listing.book_photos_done)
-# async def process_photos_after(message: types.Message):
-#     await message.reply('Пришлите еще фото или напишите /finish для завершения')
 
 
 @dp.message_handler(commands=["finish"], state=Create_Listing.book_photo)
@@ -344,6 +394,11 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
         await bot.send_message(user_id, "Объявление не было добавлено")
 
     await state.finish()
+
+
+@dp.message_handler(commands="mine")
+async def show_own_listings(message: types.Message):
+    await listing_display(message, message.from_user.id)
 
 
 async def main():
