@@ -183,7 +183,15 @@ async def go_back_to_listing_start(button: types.CallbackQuery, state: FSMContex
         cursor = connection.cursor()
         cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
         coins = cursor.fetchone()[0]
-        if coins > 0:
+        cursor.execute("SELECT user_id FROM Users WHERE user_id=?", (user_id,))
+        user_id_from_db = cursor.fetchone()[0]
+        if user_id_from_db == user_id:
+            connection.close()
+            await bot.send_message(
+                user_id, "Вы не можете забрать книгу у самого себя :("
+            )
+            await state.finish()
+        elif coins > 0:
             coins -= 1
             cursor.execute("UPDATE Users SET coins=? WHERE user_id=?", (coins, user_id))
             connection.commit()
