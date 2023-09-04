@@ -25,6 +25,10 @@ class Create_Listing(StatesGroup):
     book_photos_done = State()
 
 
+class Mailing(StatesGroup):
+    next_state = State()
+
+
 # Эти фотки получены с помощью магии
 MENU_PHOTO = "AgACAgIAAxkBAAIPhmTwat0uDPzGy8GzGuRslrxS53KeAAL_zjEbkieAS7w17GJ78so6AQADAgADeQADMAQ"
 
@@ -139,6 +143,25 @@ async def display_coins(message: types.Message):
     await message.answer(
         f"У вас: *{coins}* {postfix}", parse_mode=types.ParseMode.MARKDOWN
     )
+
+
+@dp.message_handler(commands="admin_send_message")
+async def all_users_mailing_1(message: types.Message):
+    await Mailing.next_state.set()
+
+
+@dp.message_handler(state=Mailing.next_state)
+async def all_users_mailing_2(message: types.Message, state: FSMContext):
+    mailing = message.text
+    connection = sqlite3.connect("books.db")
+    cursor = connection.cursor()
+    cursor.execute("SELECT DISTINCT user_id FROM Users")
+    user_ids = cursor.fetchall()
+    for user_id in user_ids:
+        print(f"user_id: {user_id[0]}")
+        await bot.send_message(chat_id=user_id[0], text=mailing)
+    connection.close()
+    await state.finish()
 
 
 @dp.message_handler(Text(equals=["Выбрать книгу", "Мои книги"]))
