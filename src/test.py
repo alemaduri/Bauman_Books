@@ -155,7 +155,6 @@ async def all_users_mailing_2(message: types.Message, state: FSMContext):
     cursor.execute("SELECT DISTINCT user_id FROM Users")
     user_ids = cursor.fetchall()
     for user_id in user_ids:
-        print(f"user_id: {user_id[0]}")
         await bot.send_message(chat_id=user_id[0], text=mailing)
     connection.close()
     await state.finish()
@@ -433,7 +432,6 @@ async def take_book(callback: types.CallbackQuery):
     book_info = cursor.fetchone()
     book_id, book_owner_id, book_name, book_desc, book_status = book_info
     cursor.execute(f"SELECT * from Users Where user_id={book_owner_id}")
-    print(f"\n\n\n{book_id} {book_owner_id}\n\n\n")
     book_owner_info = cursor.fetchone()
     (
         book_owner_dbid,
@@ -465,6 +463,11 @@ async def take_book(callback: types.CallbackQuery):
         return
 
     if int(user_coins) > 0:
+        cursor.execute(
+            "UPDATE Books SET book_status=? WHERE book_id=?", (ONWAIT, book_id)
+        )
+        connection.commit()
+
         user_message_text = md.text(
             md.text("*Отличный выбор!*"),
             md.text(f"Пока что, владелец книги - {book_owner_name}"),
