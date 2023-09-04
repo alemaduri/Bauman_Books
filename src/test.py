@@ -193,6 +193,11 @@ async def listing_all(message: types.Message, page=0):
         )
 
     book_info = cursor.fetchone()
+    if not book_info:
+        await message.answer("Извините, у вас нет активных объявлений!")
+        connection.close()
+        return
+
     (
         book_id,
         user_id,
