@@ -17,25 +17,26 @@ ONLIST = 1
 ONWAIT = 2
 NOLIST = 3
 
+
 class Create_Listing(StatesGroup):
     book_name = State()
     book_description = State()
     book_photo = State()
     book_photos_done = State()
 
+
 # Эти фотки получены с помощью магии
 MENU_PHOTO = "AgACAgIAAxkBAAIPhmTwat0uDPzGy8GzGuRslrxS53KeAAL_zjEbkieAS7w17GJ78so6AQADAgADeQADMAQ"
 
 main_keyboard = types.ReplyKeyboardMarkup(
-    resize_keyboard=True, 
-    input_field_placeholder="Что вы хотите сделать?")
+    resize_keyboard=True, input_field_placeholder="Что вы хотите сделать?"
+)
 
 main_keyboard.row(
     types.KeyboardButton(text="Выбрать книгу"),
-    types.KeyboardButton(text="Поделиться книгой")
+    types.KeyboardButton(text="Поделиться книгой"),
 ).row(
-    types.KeyboardButton(text="Мои книги"),
-    types.KeyboardButton(text="Мои BookCoins")
+    types.KeyboardButton(text="Мои книги"), types.KeyboardButton(text="Мои BookCoins")
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -43,20 +44,20 @@ bot = Bot(token=config.bot_token.get_secret_value())
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
+
 @dp.message_handler(commands=["start"])
 async def start_message(message: types.Message):
-
     # Отправка стартового сообщения
     caption = md.text(
-        md.text(f"Привет, {message.from_user.first_name}!"), 
+        md.text(f"Привет, {message.from_user.first_name}!"),
         md.text("Это *Bauman Books* - революционный сервис обмена книгами."),
         md.text("Список доступных комманд:"),
         md.text("/info - узнать больше о том, как устроен обмен"),
         md.text("/coins - посмотреть количество BookCoins"),
         md.text("/mine - посмотреть свои обьявления"),
         md.text("/cancel - отмена какого-либо действия"),
-        #md.text("/finish - заверешение отправки сообщений в режиме создания объявлений"),
-        sep="\n"
+        # md.text("/finish - заверешение отправки сообщений в режиме создания объявлений"),
+        sep="\n",
     )
 
     await bot.send_photo(
@@ -64,7 +65,7 @@ async def start_message(message: types.Message):
         caption=caption,
         photo=MENU_PHOTO,
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=main_keyboard
+        reply_markup=main_keyboard,
     )
 
     connection = sqlite3.connect("books.db")
@@ -77,19 +78,25 @@ async def start_message(message: types.Message):
     if not user_in_system:
         caption = None
         caption = md.text(
-            md.text(f"Чтобы ты сразу мог начать пользоваться сервисом *Bauman Books* дарит тебе три Book Coin'a."), 
+            md.text(
+                f"Чтобы ты сразу мог начать пользоваться сервисом *Bauman Books* дарит тебе три Book Coin'a."
+            ),
             md.italic("Зачем?"),
-            md.text("Book Coin'ы нужны для того, чтобы брать книги. Одна взятая тобой книга - один Book Coin"),
+            md.text(
+                "Book Coin'ы нужны для того, чтобы брать книги. Одна взятая тобой книга - один Book Coin"
+            ),
             md.italic("Как их получить?"),
-            md.text("Чтобы получить Book Coin ты должен поделиться какой-нибдуь книгой с другими читателями. Так мы сохраняем баланс книг в сервисе"),
+            md.text(
+                "Чтобы получить Book Coin ты должен поделиться какой-нибдуь книгой с другими читателями. Так мы сохраняем баланс книг в сервисе"
+            ),
             md.text("Чтобы узанть больше пиши /info"),
-            sep="\n"
+            sep="\n",
         )
         await bot.send_message(
             chat_id=message.from_user.id,
             text=caption,
             parse_mode=ParseMode.MARKDOWN,
-            reply_markup=main_keyboard
+            reply_markup=main_keyboard,
         )
         cursor.execute(
             "INSERT INTO Users (user_id, name, nickname, coins) VALUES(?, ?, ?, ?)",
@@ -112,6 +119,7 @@ async def start_message(message: types.Message):
 #         print("LOG: Bot ended")
 #         dp.stop_polling()
 
+
 @dp.message_handler(Text(equals=["Выбрать книгу", "Мои книги"]))
 async def listing_all(message: types.Message, page=0):
     if message.text == "Выбрать книгу":
@@ -124,16 +132,14 @@ async def listing_all(message: types.Message, page=0):
     if command == "ALL_GOTOPAGE":
         cursor.execute("SELECT COUNT(*) FROM Books")
     if command == "MY_GOTOPAGE":
-        cursor.execute(
-            f"SELECT COUNT(*) FROM Books WHERE user_id={user_id}"
-        )
-    
+        cursor.execute(f"SELECT COUNT(*) FROM Books WHERE user_id={user_id}")
+
     max_page = cursor.fetchone()[0]
-    if (page < 0):
+    if page < 0:
         page = max_page - 1
-    if (page >= max_page):
+    if page >= max_page:
         page = 0
-    #print(f"LOG:listing_all:page:{page}")
+    # print(f"LOG:listing_all:page:{page}")
     if command == "ALL_GOTOPAGE":
         cursor.execute(
             f"SELECT * FROM Books WHERE book_status={ONLIST} LIMIT 1 OFFSET {page}"
@@ -142,29 +148,21 @@ async def listing_all(message: types.Message, page=0):
         cursor.execute(
             f"SELECT * FROM Books WHERE book_status={ONLIST} AND user_id={user_id} LIMIT 1 OFFSET {page}"
         )
-     
+
     book_info = cursor.fetchone()
     book_id, user_id, book_name, book_desc, book_status = book_info
 
     catalogue_keyboard = types.InlineKeyboardMarkup()
     if command == "ALL_GOTOPAGE":
         catalogue_keyboard.add(
-            InlineKeyboardButton(
-                f"Хочу взять", 
-                callback_data=f"ALL_BOOK|{book_id}"
-            )
+            InlineKeyboardButton(f"Хочу взять", callback_data=f"ALL_BOOK|{book_id}")
         )
     if command == "MY_GOTOPAGE":
         catalogue_keyboard.add(
-            InlineKeyboardButton(
-                f"Удалить", 
-                callback_data=f"DELETE|{book_id}"
-            )
+            InlineKeyboardButton(f"Удалить", callback_data=f"DELETE|{book_id}")
         )
 
-    cursor.execute(
-        f"SELECT photo_tg_id FROM Photos WHERE book_id={book_id}"
-    )
+    cursor.execute(f"SELECT photo_tg_id FROM Photos WHERE book_id={book_id}")
     photo_tg_id = cursor.fetchone()[0]
     connection.close()
     if command == "ALL_GOTOPAGE":
@@ -173,23 +171,21 @@ async def listing_all(message: types.Message, page=0):
         caption_variable = md.text(f"Мои книги: страница __{page+1}/{max_page}__\n")
 
     caption = md.text(
-        md.text(f"*{book_name}*\n"),
-        md.text(f"{book_desc}\n"),
-        caption_variable,
-        sep=""
+        md.text(f"*{book_name}*\n"), md.text(f"{book_desc}\n"), caption_variable, sep=""
     )
 
     catalogue_keyboard.row(
         InlineKeyboardButton("⬅️", callback_data=f"{command}|{page-1}"),
-        InlineKeyboardButton("➡️", callback_data=f"{command}|{page+1}")
+        InlineKeyboardButton("➡️", callback_data=f"{command}|{page+1}"),
     )
     await bot.send_photo(
         photo=photo_tg_id,
-        chat_id=message.from_user.id, 
+        chat_id=message.from_user.id,
         caption=caption,
         reply_markup=catalogue_keyboard,
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.MARKDOWN,
     )
+
 
 @dp.callback_query_handler(
     lambda callback: callback.data.split("|")[0] in ["ALL_GOTOPAGE", "MY_GOTOPAGE"],
@@ -203,16 +199,14 @@ async def go_to_page(callback: types.CallbackQuery):
     if command == "ALL_GOTOPAGE":
         cursor.execute("SELECT COUNT(*) FROM Books")
     if command == "MY_GOTOPAGE":
-        cursor.execute(
-            f"SELECT COUNT(*) FROM Books WHERE user_id={user_id}"
-        )
-    
+        cursor.execute(f"SELECT COUNT(*) FROM Books WHERE user_id={user_id}")
+
     max_page = cursor.fetchone()[0]
-    if (page < 0):
+    if page < 0:
         page = max_page - 1
-    if (page >= max_page):
+    if page >= max_page:
         page = 0
-    #print(f"LOG:listing_all:page:{page}")
+    # print(f"LOG:listing_all:page:{page}")
     if command == "ALL_GOTOPAGE":
         cursor.execute(
             f"SELECT * FROM Books WHERE book_status={ONLIST} LIMIT 1 OFFSET {page}"
@@ -221,29 +215,21 @@ async def go_to_page(callback: types.CallbackQuery):
         cursor.execute(
             f"SELECT * FROM Books WHERE book_status={ONLIST} AND user_id={user_id} LIMIT 1 OFFSET {page}"
         )
-     
+
     book_info = cursor.fetchone()
     book_id, user_id, book_name, book_desc, book_status = book_info
 
     catalogue_keyboard = types.InlineKeyboardMarkup()
     if command == "ALL_GOTOPAGE":
         catalogue_keyboard.add(
-            InlineKeyboardButton(
-                f"Хочу взять", 
-                callback_data=f"ALL_BOOK|{book_id}"
-            )
+            InlineKeyboardButton(f"Хочу взять", callback_data=f"ALL_BOOK|{book_id}")
         )
     if command == "MY_GOTOPAGE":
         catalogue_keyboard.add(
-            InlineKeyboardButton(
-                f"Удалить", 
-                callback_data=f"DELETE|{book_id}"
-            )
+            InlineKeyboardButton(f"Удалить", callback_data=f"DELETE|{book_id}")
         )
 
-    cursor.execute(
-        f"SELECT photo_tg_id FROM Photos WHERE book_id={book_id}"
-    )
+    cursor.execute(f"SELECT photo_tg_id FROM Photos WHERE book_id={book_id}")
     photo_tg_id = cursor.fetchone()[0]
     connection.close()
     if command == "ALL_GOTOPAGE":
@@ -252,44 +238,40 @@ async def go_to_page(callback: types.CallbackQuery):
         caption_variable = md.text(f"Мои книги: страница __{page+1}/{max_page}__\n")
 
     caption = md.text(
-        md.text(f"*{book_name}*\n"),
-        md.text(f"{book_desc}\n"),
-        caption_variable,
-        sep=""
+        md.text(f"*{book_name}*\n"), md.text(f"{book_desc}\n"), caption_variable, sep=""
     )
 
     catalogue_keyboard.row(
         InlineKeyboardButton("⬅️", callback_data=f"{command}|{page-1}"),
-        InlineKeyboardButton("➡️", callback_data=f"{command}|{page+1}")
+        InlineKeyboardButton("➡️", callback_data=f"{command}|{page+1}"),
     )
     media = types.InputMediaPhoto(photo_tg_id)
 
     await bot.edit_message_media(
         media=media,
-        chat_id=callback.from_user.id, 
+        chat_id=callback.from_user.id,
         message_id=callback.message.message_id,
     )
 
     await bot.edit_message_caption(
-        chat_id=callback.from_user.id, 
+        chat_id=callback.from_user.id,
         caption=caption,
         message_id=callback.message.message_id,
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.MARKDOWN,
     )
 
-
     await bot.edit_message_reply_markup(
-        chat_id=callback.from_user.id, 
+        chat_id=callback.from_user.id,
         message_id=callback.message.message_id,
         reply_markup=catalogue_keyboard,
     )
 
-        
 
 @dp.message_handler(Text(equals="Поделиться книгой"))
 async def listing_start(message: types.Message):
     await Create_Listing.book_name.set()
     await message.reply("Введите название книги")
+
 
 @dp.message_handler(state=Create_Listing.book_name)
 async def process_name(message: types.Message, state: FSMContext):
@@ -297,6 +279,7 @@ async def process_name(message: types.Message, state: FSMContext):
         data["book_name"] = message.text
     await Create_Listing.next()
     await message.reply("Введите описание книги")
+
 
 @dp.message_handler(state=Create_Listing.book_description)
 async def process_desc(message: types.Message, state: FSMContext):
@@ -307,6 +290,7 @@ async def process_desc(message: types.Message, state: FSMContext):
     await message.answer(
         "После отправки всех необходимых фото напишите /finish для завершения"
     )
+
 
 @dp.message_handler(
     content_types=types.ContentTypes.PHOTO, state=Create_Listing.book_photo
@@ -342,6 +326,7 @@ async def finish_listing(message: types.Message, state: FSMContext):
     await message.answer(
         "-----------Выберите действие-----------", reply_markup=keyboard
     )
+
 
 @dp.callback_query_handler(
     lambda button: button.data in ["button1", "button2"],
@@ -381,14 +366,12 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
 
     await state.finish()
 
+
 @dp.callback_query_handler(
     lambda button: button.data in ["button1", "button2"],
     state=Create_Listing.book_photo,
 )
-
-@dp.callback_query_handler(
-    lambda callback: callback.data.split("|")[0] in ["ALL_BOOK"]
-)
+@dp.callback_query_handler(lambda callback: callback.data.split("|")[0] in ["ALL_BOOK"])
 async def take_book(callback: types.CallbackQuery):
     command = callback.data.split("|")[0]
     book_id = callback.data.split("|")[1]
@@ -397,10 +380,16 @@ async def take_book(callback: types.CallbackQuery):
     cursor = connection.cursor()
     cursor.execute(f"SELECT * FROM Books WHERE book_id={book_id}")
     book_info = cursor.fetchone()
-    book_id,book_owner_id, book_name, book_desc, book_status = book_info
+    book_id, book_owner_id, book_name, book_desc, book_status = book_info
     cursor.execute(f"SELECT * from Users Where user_id={book_owner_id}")
     book_owner_info = cursor.fetchone()
-    book_owner_dbid, book_owner_id, book_owner_name, book_owner_nickname, book_owner_coins = book_owner_info
+    (
+        book_owner_dbid,
+        book_owner_id,
+        book_owner_name,
+        book_owner_nickname,
+        book_owner_coins,
+    ) = book_owner_info
     cursor.execute(f"SELECT * from Users WHERE user_id={user_id}")
     user_info = cursor.fetchone()
     user_dbid, user_id, user_name, user_nickname, user_coins = user_info
@@ -408,81 +397,82 @@ async def take_book(callback: types.CallbackQuery):
     if book_owner_id == user_id:
         user_message_text = md.text(
             md.text("*Эта книга уже твоя*"),
-            md.text(f"Если ты хочешь, чтобы другие читатели ее больше не видели, нажми кнпоку"),
-            sep = "\n",
+            md.text(
+                f"Если ты хочешь, чтобы другие читатели ее больше не видели, нажми кнпоку"
+            ),
+            sep="\n",
         )
         kb = InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton(
-                f"Удалить", 
-                callback_data=f"DELETE|{book_id}"
-            )
-        )
+        kb.add(InlineKeyboardButton(f"Удалить", callback_data=f"DELETE|{book_id}"))
         await bot.send_message(
             chat_id=user_id,
             text=user_message_text,
             reply_markup=kb,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
         )
         return
 
-    if (int(user_coins) > 0):
+    if int(user_coins) > 0:
         user_message_text = md.text(
             md.text("*Отличный выбор!*"),
             md.text(f"Пока что, владелец книги - {book_owner_name}"),
-            md.text(f"Напиши ему, чтобы договориться о встрече: @{book_owner_nickname}"),
+            md.text(
+                f"Напиши ему, чтобы договориться о встрече: @{book_owner_nickname}"
+            ),
             md.text(f"Теперь на твоем счету {user_coins - 1} BookCoins"),
-            md.text(f"\nЧтобы заработать больше BookCoin'ов ты можешь поделиться книгой с другими читателями!"),
-            md.text("Чтобы это сделать просто нажми кнопку _\"Поделиться книгой\"_"),
-            sep = "\n",
+            md.text(
+                f"\nЧтобы заработать больше BookCoin'ов ты можешь поделиться книгой с другими читателями!"
+            ),
+            md.text('Чтобы это сделать просто нажми кнопку _"Поделиться книгой"_'),
+            sep="\n",
         )
         owner_message_text = md.text(
             md.text("Привет!"),
             md.text(f"{user_name} хочет взять твою книгу."),
-            md.text(f"Скоро он напишет тебе, но ты, конечно, можешь написать первым: @{user_nickname}"),
-            md.text("Когда вы договоритесь - нажми эту кнопку, и твоя книжка исчезнет из библиотеки, а тебе начислятся BookCoins"),
-            sep = "\n"
+            md.text(
+                f"Скоро он напишет тебе, но ты, конечно, можешь написать первым: @{user_nickname}"
+            ),
+            md.text(
+                "Когда вы договоритесь - нажми эту кнопку, и твоя книжка исчезнет из библиотеки, а тебе начислятся BookCoins"
+            ),
+            sep="\n",
         )
         await bot.send_message(
-            chat_id=user_id,
-            text = user_message_text,
-            parse_mode=ParseMode.MARKDOWN
+            chat_id=user_id, text=user_message_text, parse_mode=ParseMode.MARKDOWN
         )
         kb = InlineKeyboardMarkup()
         kb.add(
             InlineKeyboardButton(
-                text = "Мы договорились",
-                callback_data=f"SUCCESS_TRANSFER|{book_id}"
+                text="Мы договорились", callback_data=f"SUCCESS_TRANSFER|{book_id}"
             )
         )
         kb.add(
             InlineKeyboardButton(
-                text = "Мы не договорились",
-                callback_data=f"CANCEL_TRANSFER|{book_id}"
+                text="Мы не договорились", callback_data=f"CANCEL_TRANSFER|{book_id}"
             )
         )
         await bot.send_message(
             chat_id=book_owner_id,
-            text = owner_message_text,
+            text=owner_message_text,
             reply_markup=kb,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
         )
-    
 
     else:
         message_text = md.text(
             md.text("*У тебя не хватает BookCoins*"),
-            md.text(f"\nЧтобы их заработать, делись своими книгами с другими читателями!"),
-            md.text("Чтобы это сделать просто нажми кнопку __\"Поделиться книгой\"__"),
-            sep = "\n"
+            md.text(
+                f"\nЧтобы их заработать, делись своими книгами с другими читателями!"
+            ),
+            md.text('Чтобы это сделать просто нажми кнопку __"Поделиться книгой"__'),
+            sep="\n",
         )
-    
-
-
 
 
 # Начало поллинга
 async def main():
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
