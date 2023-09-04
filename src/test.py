@@ -411,6 +411,108 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
     await state.finish()
 
 
+@dp.callback_query_handler(
+    lambda button: button.data in ["button1", "button2"],
+    state=Create_Listing.book_photo,
+)
+@dp.callback_query_handler(lambda callback: callback.data.split("|")[0] in ["ALL_BOOK"])
+async def take_book(callback: types.CallbackQuery):
+    command = callback.data.split("|")[0]
+    book_id = callback.data.split("|")[1]
+    user_id = callback.from_user.id
+    connection = sqlite3.connect("books.db")
+    cursor = connection.cursor()
+    cursor.execute(f"SELECT * FROM Books WHERE book_id={book_id}")
+    book_info = cursor.fetchone()
+    book_id, book_owner_id, book_name, book_desc, book_status = book_info
+    cursor.execute(f"SELECT * from Users Where user_id={book_owner_id}")
+    book_owner_info = cursor.fetchone()
+    (
+        book_owner_dbid,
+        book_owner_id,
+        book_owner_name,
+        book_owner_nickname,
+        book_owner_coins,
+    ) = book_owner_info
+    cursor.execute(f"SELECT * from Users WHERE user_id={user_id}")
+    user_info = cursor.fetchone()
+    user_dbid, user_id, user_name, user_nickname, user_coins = user_info
+
+    if book_owner_id == user_id:
+        user_message_text = md.text(
+            md.text("*Эта книга уже твоя*"),
+            md.text(
+                f"Если ты хочешь, чтобы другие читатели ее больше не видели, нажми кнпоку"
+            ),
+            sep="\n",
+        )
+        kb = InlineKeyboardMarkup()
+        kb.add(InlineKeyboardButton(f"Удалить", callback_data=f"DELETE|{book_id}"))
+        await bot.send_message(
+            chat_id=user_id,
+            text=user_message_text,
+            reply_markup=kb,
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+
+    if int(user_coins) > 0:
+        user_message_text = md.text(
+            md.text("*Отличный выбор!*"),
+            md.text(f"Пока что, владелец книги - {book_owner_name}"),
+            md.text(
+                f"Напиши ему, чтобы договориться о встрече: @{book_owner_nickname}"
+            ),
+            md.text(f"Теперь на твоем счету {user_coins - 1} BookCoins"),
+            md.text(
+                f"\nЧтобы заработать больше BookCoin'ов ты можешь поделиться книгой с другими читателями!"
+            ),
+            md.text('Чтобы это сделать просто нажми кнопку _"Поделиться книгой"_'),
+            sep="\n",
+        )
+        owner_message_text = md.text(
+            md.text("Привет!"),
+            md.text(f"{user_name} хочет взять твою книгу."),
+            md.text(
+                f"Скоро он напишет тебе, но ты, конечно, можешь написать первым: @{user_nickname}"
+            ),
+            md.text(
+                "Когда вы договоритесь - нажми эту кнопку, и твоя книжка исчезнет из библиотеки, а тебе начислятся BookCoins"
+            ),
+            sep="\n",
+        )
+        await bot.send_message(
+            chat_id=user_id, text=user_message_text, parse_mode=ParseMode.MARKDOWN
+        )
+        kb = InlineKeyboardMarkup()
+        kb.add(
+            InlineKeyboardButton(
+                text="Мы договорились", callback_data=f"SUCCESS_TRANSFER|{book_id}"
+            )
+        )
+        kb.add(
+            InlineKeyboardButton(
+                text="Мы не договорились", callback_data=f"CANCEL_TRANSFER|{book_id}"
+            )
+        )
+        await bot.send_message(
+            chat_id=book_owner_id,
+            text=owner_message_text,
+            reply_markup=kb,
+            parse_mode=ParseMode.MARKDOWN,
+        )
+
+    else:
+        message_text = md.text(
+            md.text("*У тебя не хватает BookCoins*"),
+            md.text(
+                f"\nЧтобы их заработать, делись своими книгами с другими читателями!"
+            ),
+            md.text('Чтобы это сделать просто нажми кнопку __"Поделиться книгой"__'),
+            sep="\n",
+        )
+
+
 # Начало поллинга
 async def main():
     await dp.start_polling(bot)
