@@ -78,7 +78,6 @@ async def start_message(message: types.Message):
         "SELECT EXISTS(SELECT 1 FROM Users WHERE user_id=?)", (message.from_user.id,)
     )
     user_in_system = cursor.fetchone()[0]
-
     if not user_in_system:
         caption = None
         caption = md.text(
@@ -140,9 +139,7 @@ async def display_coins(message: types.Message):
     else:
         postfix = "монеты"
     connection.close()
-    await message.answer(
-        f"У вас: *{coins}* {postfix}", parse_mode=types.ParseMode.MARKDOWN
-    )
+    await message.answer(f"У вас: *{coins}* {postfix}", parse_mode=ParseMode.MARKDOWN)
 
 
 @dp.message_handler(commands="admin_send_message")
@@ -174,9 +171,11 @@ async def listing_all(message: types.Message, page=0):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
     if command == "ALL_GOTOPAGE":
-        cursor.execute("SELECT COUNT(*) FROM Books")
+        cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
     if command == "MY_GOTOPAGE":
-        cursor.execute(f"SELECT COUNT(*) FROM Books WHERE user_id={user_id}")
+        cursor.execute(
+            f"SELECT COUNT(*) FROM Books WHERE user_id={user_id} AND book_status={ONLIST}"
+        )
 
     max_page = cursor.fetchone()[0]
     if page < 0:
@@ -194,7 +193,13 @@ async def listing_all(message: types.Message, page=0):
         )
 
     book_info = cursor.fetchone()
-    book_id, user_id, book_name, book_desc, book_status = book_info
+    (
+        book_id,
+        user_id,
+        book_name,
+        book_desc,
+        book_status,
+    ) = book_info  # если у юзера нет книг - падает
 
     catalogue_keyboard = types.InlineKeyboardMarkup()
     if command == "ALL_GOTOPAGE":
@@ -241,9 +246,11 @@ async def go_to_page(callback: types.CallbackQuery):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
     if command == "ALL_GOTOPAGE":
-        cursor.execute("SELECT COUNT(*) FROM Books")
+        cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
     if command == "MY_GOTOPAGE":
-        cursor.execute(f"SELECT COUNT(*) FROM Books WHERE user_id={user_id}")
+        cursor.execute(
+            f"SELECT COUNT(*) FROM Books WHERE user_id={user_id} AND book_status={ONLIST}"
+        )
 
     max_page = cursor.fetchone()[0]
     if page < 0:
@@ -358,7 +365,7 @@ async def finish_listing(message: types.Message, state: FSMContext):
 
         info_message = f"*Название книги:* {book_name}\n"
         info_message += f"*Описание книги:* {book_desc}"
-        await message.answer(info_message, parse_mode=types.ParseMode.MARKDOWN)
+        await message.answer(info_message, parse_mode=ParseMode.MARKDOWN)
 
         if book_photos:
             media = [types.InputMediaPhoto(media=photo) for photo in book_photos]
@@ -388,11 +395,6 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
             book_name = data["book_name"]
             book_desc = data["book_desc"]
             book_photos = data.get("book_photos", [])
-            cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
-            coins = cursor.fetchone()[0]
-            cursor.execute(
-                "UPDATE Users SET coins=? WHERE user_id=?", (coins + 1, user_id)
-            )
             cursor.execute(
                 "INSERT INTO Books (user_id, book_name, description, book_status) VALUES(?, ?, ?, ?)",
                 (user_id, book_name, book_desc, ONLIST),
@@ -426,6 +428,7 @@ async def take_book(callback: types.CallbackQuery):
     book_info = cursor.fetchone()
     book_id, book_owner_id, book_name, book_desc, book_status = book_info
     cursor.execute(f"SELECT * from Users Where user_id={book_owner_id}")
+    print(f"\n\n\n{book_id} {book_owner_id}\n\n\n")
     book_owner_info = cursor.fetchone()
     (
         book_owner_dbid,
@@ -487,12 +490,14 @@ async def take_book(callback: types.CallbackQuery):
         kb = InlineKeyboardMarkup()
         kb.add(
             InlineKeyboardButton(
-                text="Мы договорились", callback_data=f"SUCCESS_TRANSFER|{book_id}"
+                text="Мы договорились",
+                callback_data=f"SUCCESS_TRANSFER|{book_id}|{user_id}|{book_name}",
             )
         )
         kb.add(
             InlineKeyboardButton(
-                text="Мы не договорились", callback_data=f"CANCEL_TRANSFER|{book_id}"
+                text="Мы не договорились",
+                callback_data=f"CANCEL_TRANSFER|{book_id}|{user_id}|{book_name}",
             )
         )
         await bot.send_message(
@@ -511,6 +516,64 @@ async def take_book(callback: types.CallbackQuery):
             md.text('Чтобы это сделать просто нажми кнопку __"Поделиться книгой"__'),
             sep="\n",
         )
+
+
+@dp.callback_query_handler(
+    lambda callback: callback.data.split("|")[0]
+    in ["SUCCESS_TRANSFER", "CANCEL_TRANSFER"]
+)
+async def handle_transfer_response(callback: types.CallbackQuery):
+    callback_data = callback.data.split("|")
+    command = callback_data[0]
+    book_id = callback_data[1]
+    user_that_recieves_id = callback_data[2]
+    book_name = callback_data[3]
+    curr_user_id = callback.from_user.id
+    connection = sqlite3.connect("books.db")
+    cursor = connection.cursor()
+
+    if command == "SUCCESS_TRANSFER":
+        cursor.execute("SELECT coins FROM Users WHERE user_id=?", (curr_user_id,))
+        coins_curr_user = cursor.fetchone()[0]
+        cursor.execute(
+            "SELECT coins FROM Users WHERE user_id=?", (user_that_recieves_id,)
+        )
+        coins_user_that_recieves = cursor.fetchone()[0]
+        cursor.execute(
+            "UPDATE Books SET book_status=? WHERE book_id=?", (NOLIST, book_id)
+        )
+        cursor.execute(
+            "UPDATE Users SET coins=? WHERE user_id=?",
+            (coins_curr_user + 1, curr_user_id),
+        )
+        cursor.execute(
+            "UPDATE Users SET coins=? WHERE user_id=?",
+            (coins_user_that_recieves - 1, user_that_recieves_id),
+        )
+        await bot.send_message(
+            curr_user_id,
+            f"Поздравляем! Вы отдали книгу *{book_name}*!",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await bot.send_message(
+            user_that_recieves_id,
+            f"Поздравляем! Вы получили книгу *{book_name}*!",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+
+    elif command == "CANCEL_TRANSFER":
+        cursor.execute(
+            "UPDATE Books SET book_status=? WHERE book_id=?", (ONLIST, book_id)
+        )
+        await bot.send_message(curr_user_id, "Книга вернулась в каталог!")
+        await bot.send_message(
+            user_that_recieves_id,
+            f"Вы не смогли договориться по поводу книги *{book_name}* :(, мы вернули вам монету",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+
+    connection.commit()
+    connection.close()
 
 
 # Начало поллинга
