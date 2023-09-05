@@ -92,7 +92,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 
 @dp.message_handler(Text(equals="Посмотреть объявления"))
 async def listing_display(message: types.Message, mine=0):
-    await Display_Listings.all_listings.set()
+    #await Display_Listings.all_listings.set()
     if mine:
         await message.answer("Ваши объявления:")
     else:
@@ -100,32 +100,6 @@ async def listing_display(message: types.Message, mine=0):
 
     await all_listings_display(message, Display_Listings.all_listings, mine)
 
-
-@dp.message_handler(state=Display_Listings.all_listings)
-async def all_listings_display(message: types.Message, state: FSMContext, mine=0):
-    connection = sqlite3.connect("books.db")
-    cursor = connection.cursor()
-    if mine:
-        cursor.execute("SELECT * FROM Books WHERE user_id=?", (mine,))
-        books_data = cursor.fetchall()
-    else:
-        cursor.execute("SELECT * FROM Books")
-        books_data = cursor.fetchall()
-
-    info_message = f"----------------------------------\n"
-    for book in books_data:
-        book_id, user_id, book_name, description, book_status = book
-        info_message += f"ID книги: {book_id}, Название книги: {book_name}\n"
-
-    await message.answer(info_message, parse_mode=types.ParseMode.MARKDOWN)
-
-    connection.close()
-
-    await message.answer("Напишите ID интересующей книги")
-    if mine:
-        await Display_Listings.self_listing.set()
-    else:
-        await Display_Listings.next()
 
 
 @dp.message_handler(
@@ -395,6 +369,33 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
 
     await state.finish()
 
+
+@dp.message_handler(state=Display_Listings.all_listings)
+async def all_listings_display(message: types.Message, state: FSMContext, mine=0):
+    connection = sqlite3.connect("books.db")
+    cursor = connection.cursor()
+    if mine:
+        cursor.execute("SELECT * FROM Books WHERE user_id=?", (mine,))
+        books_data = cursor.fetchall()
+    else:
+        cursor.execute("SELECT * FROM Books")
+        books_data = cursor.fetchall()
+    print(type(state))
+    state.proxy()
+    info_message = f"----------------------------------\n"
+    for book in books_data:
+        book_id, user_id, book_name, description, book_status = book
+        info_message += f"ID книги: {book_id}, Название книги: {book_name}\n"
+
+    await message.answer(info_message, parse_mode=types.ParseMode.MARKDOWN)
+
+    connection.close()
+
+    await message.answer("Напишите ID интересующей книги")
+    if mine:
+        await Display_Listings.self_listing.set()
+    else:
+        await Display_Listings.next()
 
 @dp.message_handler(commands="mine")
 async def show_own_listings(message: types.Message):
