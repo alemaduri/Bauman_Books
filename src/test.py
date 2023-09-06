@@ -759,8 +759,13 @@ async def listing_start(message: types.Message):
     if isbanned:
         await message.answer("Вы забанены")
     else:
+        message_text = md.text(
+            md.text("Введите название книги"),
+            md.text("Если вы хотите отменить создание объявления - напишите /cancel"),
+            sep="\n",
+        )
         await Create_Listing.book_name.set()
-        await message.reply("Введите название книги")
+        await message.reply(message_text, parse_mode=ParseMode.MARKDOWN)
 
 
 @dp.message_handler(state=Create_Listing.book_name)
@@ -768,7 +773,12 @@ async def process_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["book_name"] = message.text
     await Create_Listing.next()
-    await message.reply("Введите описание книги")
+    message_text = md.text(
+        md.text("Введите описание книги"),
+        md.text("Если вы хотите отменить создание объявления - напишите /cancel"),
+        sep="\n",
+    )
+    await message.reply(message_text, parse_mode=ParseMode.MARKDOWN)
 
 
 @dp.message_handler(state=Create_Listing.book_description)
@@ -776,7 +786,12 @@ async def process_desc(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["book_desc"] = message.text
     await Create_Listing.next()
-    await message.reply("Пришлите фото книг")
+    message_text = md.text(
+        md.text("Пришлите фото книг"),
+        md.text("Если вы хотите отменить создание объявления - напишите /cancel"),
+        sep="\n",
+    )
+    await message.reply(message_text, parse_mode=ParseMode.MARKDOWN)
 
 
 @dp.message_handler(
