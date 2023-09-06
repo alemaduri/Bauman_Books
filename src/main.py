@@ -1141,7 +1141,7 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    try:
+    # try:
     #     connection = sqlite3.connect("/data/books.db")
     #     cursor = connection.cursor()
     #     cursor.execute(f"SELECT * FROM Users")
