@@ -81,11 +81,11 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 
 @dp.message_handler(commands=["admin_all_books"])
 async def admin_listing_all(message: types.Message, page=0):
+    user_id = message.from_user.id
     if user_id not in ADMIN_IDS:
         await bot.send_message("Вы не админ :)")
         return
     command = "ADMIN_GOTOPAGE"
-    user_id = message.from_user.id
     connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
