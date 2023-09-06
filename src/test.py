@@ -521,7 +521,19 @@ async def start_message(message: types.Message):
 async def display_coins(message: types.Message):
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
+
     user_id = message.from_user.id
+
+    cursor.execute(
+        "SELECT isbanned FROM Users WHERE user_id=?", (message.from_user.id,)
+    )
+    isbanned = cursor.fetchone()[0]
+
+    if isbanned:
+        await message.answer("Вы забанены")
+        connection.close()
+        return
+
     cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
     coins = cursor.fetchone()[0]
     cursor.execute(
@@ -570,6 +582,16 @@ async def listing_all(message: types.Message, page=0):
     user_id = message.from_user.id
     connection = sqlite3.connect("books.db")
     cursor = connection.cursor()
+    cursor.execute(
+        "SELECT isbanned FROM Users WHERE user_id=?", (message.from_user.id,)
+    )
+    isbanned = cursor.fetchone()[0]
+
+    if isbanned:
+        await message.answer("Вы забанены")
+        connection.close()
+        return
+
     if command == "ALL_GOTOPAGE":
         cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
     if command == "MY_GOTOPAGE":
