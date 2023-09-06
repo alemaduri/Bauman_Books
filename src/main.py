@@ -86,7 +86,7 @@ async def admin_listing_all(message: types.Message, page=0):
         return
     command = "ADMIN_GOTOPAGE"
     user_id = message.from_user.id
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
 
@@ -163,7 +163,7 @@ async def admin_go_to_page(callback: types.CallbackQuery):
     command = callback.data.split("|")[0]
     page = int(callback.data.split("|")[1])
     user_id = callback.from_user.id
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
 
@@ -264,7 +264,7 @@ async def admin_delete_book_accept(callback: types.CallbackQuery, state: FSMCont
 
     if command == "ADMIN_ACCEPT_DELETION":
         book_id = callback.data.split("|")[1]
-        connection = sqlite3.connect("books.db")
+        connection = sqlite3.connect("data/books.db")
         cursor = connection.cursor()
         cursor.execute(f"SELECT book_name FROM Books WHERE book_id={book_id}")
         book_name = cursor.fetchone()[0]
@@ -360,7 +360,7 @@ async def info_message(message: types.Message):
 
 @dp.message_handler(commands=["coins"])
 async def display_coins_command(message: types.Message):
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     user_id = message.from_user.id
     cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
@@ -383,7 +383,7 @@ async def display_coins_command(message: types.Message):
 async def my_books_command(message: types.Message, page=0):
     command = "MY_GOTOPAGE"
     user_id = message.from_user.id
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     cursor.execute(
         f"SELECT COUNT(*) FROM Books WHERE user_id={user_id} AND book_status={ONLIST}"
@@ -468,7 +468,7 @@ async def start_message(message: types.Message):
         reply_markup=main_keyboard,
     )
 
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     cursor.execute(
         "SELECT EXISTS(SELECT 1 FROM Users WHERE user_id=?)", (message.from_user.id,)
@@ -515,7 +515,7 @@ async def start_message(message: types.Message):
 
 @dp.message_handler(Text(equals="Мои Book Coin"))
 async def display_coins(message: types.Message):
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
 
     user_id = message.from_user.id
@@ -558,7 +558,7 @@ async def all_users_mailing_1(message: types.Message):
 async def all_users_mailing_2(message: types.Message, state: FSMContext):
     print("LOG:admin_send_message")
     mailing = message.text
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     cursor.execute("SELECT DISTINCT user_id FROM Users")
     user_ids = cursor.fetchall()
@@ -578,7 +578,7 @@ async def listing_all(message: types.Message, page=0):
     if message.text == "Мои книги":
         command = "MY_GOTOPAGE"
     user_id = message.from_user.id
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     cursor.execute(
         "SELECT isbanned FROM Users WHERE user_id=?", (message.from_user.id,)
@@ -670,7 +670,7 @@ async def go_to_page(callback: types.CallbackQuery):
     command = callback.data.split("|")[0]
     page = int(callback.data.split("|")[1])
     user_id = callback.from_user.id
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     if command == "ALL_GOTOPAGE":
         cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
@@ -747,7 +747,7 @@ async def go_to_page(callback: types.CallbackQuery):
 
 @dp.message_handler(Text(equals="Поделиться книгой"))
 async def listing_start(message: types.Message):
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
 
     cursor.execute(
@@ -838,7 +838,7 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
     user_id = button.from_user.id
 
     if button_data == "button1":
-        connection = sqlite3.connect("books.db")
+        connection = sqlite3.connect("data/books.db")
         cursor = connection.cursor()
         await bot.send_message(user_id, "Объявление было добавлено")
         async with state.proxy() as data:
@@ -874,7 +874,7 @@ async def take_book(callback: types.CallbackQuery):
     command = callback.data.split("|")[0]
     book_id = callback.data.split("|")[1]
     user_id = callback.from_user.id
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
     cursor.execute(f"SELECT * FROM Books WHERE book_id={book_id}")
     book_info = cursor.fetchone()
@@ -988,7 +988,7 @@ async def handle_transfer_response(callback: types.CallbackQuery):
     user_that_recieves_id = callback_data[2]
     book_name = callback_data[3]
     curr_user_id = callback.from_user.id
-    connection = sqlite3.connect("books.db")
+    connection = sqlite3.connect("data/books.db")
     cursor = connection.cursor()
 
     if command == "SUCCESS_TRANSFER":
@@ -1056,7 +1056,7 @@ async def delete_book_accept(callback: types.CallbackQuery, state: FSMContext):
 
     if command == "ACCEPT_DELETION":
         book_id = callback.data.split("|")[1]
-        connection = sqlite3.connect("books.db")
+        connection = sqlite3.connect("data/books.db")
         cursor = connection.cursor()
         cursor.execute(
             "UPDATE Books SET book_status=? WHERE book_id=?", (NOLIST, book_id)
@@ -1102,7 +1102,7 @@ async def ban_user_handle(user_id, banned_user_id, command_type):
     if user_id not in ADMIN_IDS:
         await bot.send_message("Вы не админ :)")
     else:
-        connection = sqlite3.connect("books.db")
+        connection = sqlite3.connect("data/books.db")
         cursor = connection.cursor()
 
         if command_type == "ban":

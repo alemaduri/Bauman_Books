@@ -7,5 +7,5 @@ build:
   requirementsPath: requirements.txt
 run:
   scriptName: src/main.py
-  persistenceMount: ''
+  persistenceMount: data/
   containerPort: 80

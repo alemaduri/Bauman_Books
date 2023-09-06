@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # Желательно вместо str использовать SecretStr
     # для конфиденциальных данных, например, токена бота
     bot_token: SecretStr
-
+    bot_token = "6577349724:AAFhGJJVmqWvUVDsqlAOFwvSt29CiXYlvE8"
     # Вложенный класс с дополнительными указаниями для настроек
     class Config:
         # Имя файла, откуда будут прочитаны данные
