@@ -1139,7 +1139,7 @@ async def main():
     try:
         connection = sqlite3.connect("/data/books.db")
         cursor = connection.cursor()
-        cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
+        cursor.execute(f"SELECT * FROM Users")
     except:
         connection = sqlite3.connect("/data/books.db")
         cursor = connection.cursor()
