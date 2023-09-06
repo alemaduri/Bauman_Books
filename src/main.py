@@ -294,8 +294,6 @@ async def admin_delete_book_accept(callback: types.CallbackQuery, state: FSMCont
             chat_id=owner_id, text=owner_message_text, parse_mode=ParseMode.MARKDOWN
         )
 
-        await ban_user_handle(callback.from_user.id, owner_id, "ban")
-
     if command == "ADMIN_CANCEL_DELETION":
         message_text = md.text(
             md.text("Эта книга по-прежнему будет показываться другим читателям"),
@@ -1101,6 +1099,8 @@ async def ban_user(message: types.Message):
 async def ban_user_handle(user_id, banned_user_id, command_type):
     if user_id not in ADMIN_IDS:
         await bot.send_message(user_id, "Вы не админ :)")
+    elif banned_user_id in ADMIN_IDS:
+        await bot.send_message(user_id, "охуел?")
     else:
         connection = sqlite3.connect("data/books.db")
         cursor = connection.cursor()
