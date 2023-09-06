@@ -549,7 +549,7 @@ async def display_coins(message: types.Message):
 @dp.message_handler(commands="admin_send_message")
 async def all_users_mailing_1(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
-        await bot.send_message("Вы не админ :)")
+        await bot.send_message(message.from_user.id, "Вы не админ :)")
         return
     await Mailing.next_state.set()
 
@@ -1100,7 +1100,7 @@ async def ban_user(message: types.Message):
 
 async def ban_user_handle(user_id, banned_user_id, command_type):
     if user_id not in ADMIN_IDS:
-        await bot.send_message("Вы не админ :)")
+        await bot.send_message(user_id, "Вы не админ :)")
     else:
         connection = sqlite3.connect("data/books.db")
         cursor = connection.cursor()
