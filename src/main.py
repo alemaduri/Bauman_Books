@@ -1100,7 +1100,7 @@ async def ban_user_handle(user_id, banned_user_id, command_type):
     if user_id not in ADMIN_IDS:
         await bot.send_message(user_id, "Вы не админ :)")
     elif banned_user_id in ADMIN_IDS:
-        await bot.send_message(user_id, "охуел?")
+        await bot.send_message(user_id, "охуел???")
     else:
         connection = sqlite3.connect("data/books.db")
         cursor = connection.cursor()
