@@ -1140,6 +1140,7 @@ async def main():
         connection = sqlite3.connect("/data/books.db")
         cursor = connection.cursor()
         cursor.execute(f"SELECT * FROM Users")
+        connection.close()
     except:
         connection = sqlite3.connect("/data/books.db")
         cursor = connection.cursor()
