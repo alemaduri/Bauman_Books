@@ -12,10 +12,15 @@ from aiogram.types import ParseMode
 
 import sqlite3
 
-STARTING_COINS = 3
+STARTING_COINS = 1
 ONLIST = 1
 ONWAIT = 2
 NOLIST = 3
+
+BANNED = 1
+NOT_BANNED = 0
+
+ADMIN_IDS = [430814010, 810121389, 673698210]
 
 
 class Create_Listing(StatesGroup):
@@ -25,13 +30,20 @@ class Create_Listing(StatesGroup):
     book_accept = State()
     book_photos_done = State()
 
+
 class Delete_book(StatesGroup):
     accept = State()
+
 
 class Admin_delete_book(StatesGroup):
     accept = State()
 
+
 class Mailing(StatesGroup):
+    next_state = State()
+
+
+class User_ban(StatesGroup):
     next_state = State()
 
 
@@ -56,6 +68,17 @@ storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
 
+@dp.message_handler(state="*", commands="cancel")
+@dp.message_handler(Text(equals="отмена", ignore_case=True), state="*")
+async def cancel_handler(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+
+    await state.finish()
+    await message.reply("Отмена")
+
+
 @dp.message_handler(commands=["admin_all_books"])
 async def admin_listing_all(message: types.Message, page=0):
     command = "ADMIN_GOTOPAGE"
@@ -76,7 +99,9 @@ async def admin_listing_all(message: types.Message, page=0):
 
     book_info = cursor.fetchone()
     if not book_info:
-        await message.answer("Нет активных объявлений, скорее поделись книжкой с товарищами!")
+        await message.answer(
+            "Нет активных объявлений, скорее поделись книжкой с товарищами!"
+        )
         connection.close()
         return
 
@@ -94,8 +119,9 @@ async def admin_listing_all(message: types.Message, page=0):
         owner_user_id,
         owner_name,
         owner_nickname,
-        owner_coins
-    ) = owner_data 
+        owner_coins,
+        isbanned,
+    ) = owner_data
     catalogue_keyboard = types.InlineKeyboardMarkup()
     catalogue_keyboard.add(
         InlineKeyboardButton(f"Забанить перса", callback_data=f"ADMIN_DELETE|{book_id}")
@@ -108,7 +134,10 @@ async def admin_listing_all(message: types.Message, page=0):
     caption = md.text(
         md.text(f"ВЛАДЕЛЕЦ:{owner_name}\n"),
         md.text(f"TG: @{owner_nickname}\n"),
-        md.text(f"*{book_name}*\n"), md.text(f"{book_desc}\n"), caption_variable, sep=""
+        md.text(f"*{book_name}*\n"),
+        md.text(f"{book_desc}\n"),
+        caption_variable,
+        sep="",
     )
 
     catalogue_keyboard.row(
@@ -123,7 +152,10 @@ async def admin_listing_all(message: types.Message, page=0):
         parse_mode=ParseMode.MARKDOWN,
     )
 
-@dp.callback_query_handler(lambda callback: callback.data.split("|")[0] in ["ADMIN_GOTOPAGE"])
+
+@dp.callback_query_handler(
+    lambda callback: callback.data.split("|")[0] in ["ADMIN_GOTOPAGE"]
+)
 async def admin_go_to_page(callback: types.CallbackQuery):
     command = callback.data.split("|")[0]
     page = int(callback.data.split("|")[1])
@@ -158,8 +190,9 @@ async def admin_go_to_page(callback: types.CallbackQuery):
         owner_user_id,
         owner_name,
         owner_nickname,
-        owner_coins
-    ) = owner_data 
+        owner_coins,
+        isbanned,
+    ) = owner_data
     catalogue_keyboard = types.InlineKeyboardMarkup()
     catalogue_keyboard.add(
         InlineKeyboardButton(f"Забанить перса", callback_data=f"ADMIN_DELETE|{book_id}")
@@ -172,7 +205,10 @@ async def admin_go_to_page(callback: types.CallbackQuery):
     caption = md.text(
         md.text(f"ВЛАДЕЛЕЦ:{owner_name}\n"),
         md.text(f"TG: @{owner_nickname}\n"),
-        md.text(f"*{book_name}*\n"), md.text(f"{book_desc}\n"), caption_variable, sep=""
+        md.text(f"*{book_name}*\n"),
+        md.text(f"{book_desc}\n"),
+        caption_variable,
+        sep="",
     )
 
     catalogue_keyboard.row(
@@ -199,21 +235,25 @@ async def admin_go_to_page(callback: types.CallbackQuery):
         reply_markup=catalogue_keyboard,
     )
 
-@dp.callback_query_handler(lambda callback: callback.data.split("|")[0] in ["ADMIN_DELETE"])
+
+@dp.callback_query_handler(
+    lambda callback: callback.data.split("|")[0] in ["ADMIN_DELETE"]
+)
 async def delete_book(callback: types.CallbackQuery):
     book_id = callback.data.split("|")[1]
-    message_text = md.text(
-        md.text("Подтверди удаление книги")
-    )
+    message_text = md.text(md.text("Подтверди удаление книги"))
     kb = InlineKeyboardMarkup()
     kb.add(InlineKeyboardButton("Отмена", callback_data="ADMIN_CANCEL_DELETION"))
-    kb.add(InlineKeyboardButton("Подтвердить", callback_data=F"ADMIN_ACCEPT_DELETION|{book_id}"))
+    kb.add(
+        InlineKeyboardButton(
+            "Подтвердить", callback_data=f"ADMIN_ACCEPT_DELETION|{book_id}"
+        )
+    )
     await bot.send_message(
-        chat_id=callback.from_user.id,
-        text=message_text,
-        reply_markup=kb
+        chat_id=callback.from_user.id, text=message_text, reply_markup=kb
     )
     await Admin_delete_book.accept.set()
+
 
 @dp.callback_query_handler(state=Admin_delete_book.accept)
 async def admin_delete_book_accept(callback: types.CallbackQuery, state: FSMContext):
@@ -234,22 +274,25 @@ async def admin_delete_book_accept(callback: types.CallbackQuery, state: FSMCont
         connection.close()
         admin_message_text = md.text(
             md.text("Теперь эта книга больше не будет показываться другими читателям."),
-            sep="\n"
+            sep="\n",
         )
         owner_message_text = md.text(
-            md.text(f"Твоя книга *{book_name}* не соответствовала правилам сообщества Bauman Books и была удалена из каталога")
+            md.text(
+                f"Твоя книга *{book_name}* не соответствовала правилам сообщества Bauman Books и была удалена из каталога"
+            )
         )
 
         await bot.send_message(
             chat_id=callback.from_user.id,
             text=admin_message_text,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
         )
         await bot.send_message(
-            chat_id=owner_id,
-            text=owner_message_text,
-            parse_mode=ParseMode.MARKDOWN
+            chat_id=owner_id, text=owner_message_text, parse_mode=ParseMode.MARKDOWN
         )
+
+        await ban_user_handle(callback.from_user.id, owner_id)
+
     if command == "ADMIN_CANCEL_DELETION":
         message_text = md.text(
             md.text("Эта книга по-прежнему будет показываться другим читателям"),
@@ -257,19 +300,30 @@ async def admin_delete_book_accept(callback: types.CallbackQuery, state: FSMCont
         await bot.send_message(
             chat_id=callback.from_user.id,
             text=message_text,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
         )
     await state.finish()
+
 
 @dp.message_handler(commands=["info"])
 async def info_message(message: types.Message):
     caption = md.text(
         md.text("*Как работает обмен книгами?*\n"),
-        md.text("_Концепция очень проста, каждому участнику сообщества доступен каталог литературы, куда попадают книги, выложенные другими участниками._"),
-        md.text("_Наверняка у тебя возникает вопрос, а вдруг кто-то просто будет собирать все книги и не делиться?_"),
-        md.text("_Мы все просчитали!_ *Book Coin*_ - валюта внутри сообщества, позволяющая получать столько же книг, сколькими ты поделился._"),
-        md.text("_Со старта мы дарим тебе целых 3 единицы_ *Book Coin*_, потому что видим в тебе потенциал читателя._"),
-        md.text("_Это позволит попробовать Bauman Books абсолютно безвозмездно, но потом тоже нужно будет делиться, чтобы система не рухнула!_"),
+        md.text(
+            "_Концепция очень проста, каждому участнику сообщества доступен каталог литературы, куда попадают книги, выложенные другими участниками._"
+        ),
+        md.text(
+            "_Наверняка у тебя возникает вопрос, а вдруг кто-то просто будет собирать все книги и не делиться?_"
+        ),
+        md.text(
+            "_Мы все просчитали!_ *Book Coin*_ - валюта внутри сообщества, позволяющая получать столько же книг, сколькими ты поделился._"
+        ),
+        md.text(
+            "_Со старта мы дарим тебе целых 3 единицы_ *Book Coin*_, потому что видим в тебе потенциал читателя._"
+        ),
+        md.text(
+            "_Это позволит попробовать Bauman Books абсолютно безвозмездно, но потом тоже нужно будет делиться, чтобы система не рухнула!_"
+        ),
         sep="\n",
     )
     await bot.send_photo(
@@ -279,6 +333,7 @@ async def info_message(message: types.Message):
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=main_keyboard,
     )
+
 
 @dp.message_handler(commands=["help"])
 async def info_message(message: types.Message):
@@ -299,6 +354,7 @@ async def info_message(message: types.Message):
         reply_markup=main_keyboard,
     )
 
+
 @dp.message_handler(commands=["coins"])
 async def display_coins_command(message: types.Message):
     connection = sqlite3.connect("books.db")
@@ -306,16 +362,19 @@ async def display_coins_command(message: types.Message):
     user_id = message.from_user.id
     cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
     coins = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM Books WHERE user_id={user_id} AND (book_status={ONLIST} OR book_status={ONWAIT})")
+    cursor.execute(
+        f"SELECT COUNT(*) FROM Books WHERE user_id={user_id} AND (book_status={ONLIST} OR book_status={ONWAIT})"
+    )
     my_books_count = int(cursor.fetchone()[0])
     connection.close()
 
     message_text = md.text(
         md.text(f"Cейчас у тебя: *{coins}* Book Coin"),
         md.text("Поделись книжками чтобы получить больше Book Coin"),
-        sep="\n"
+        sep="\n",
     )
     await message.answer(message_text, parse_mode=ParseMode.MARKDOWN)
+
 
 @dp.message_handler(commands=["mine"])
 async def my_books_command(message: types.Message, page=0):
@@ -339,7 +398,9 @@ async def my_books_command(message: types.Message, page=0):
 
     book_info = cursor.fetchone()
     if not book_info:
-        await message.answer("Пока что, у вас нет активных объявлений\nВы можете поделиться книгой с другими читателями, нажав кнопку \"Поделиться книгой\"")
+        await message.answer(
+            'Пока что, у вас нет активных объявлений\nВы можете поделиться книгой с другими читателями, нажав кнопку "Поделиться книгой"'
+        )
         connection.close()
         return
 
@@ -379,6 +440,7 @@ async def my_books_command(message: types.Message, page=0):
         reply_markup=catalogue_keyboard,
         parse_mode=ParseMode.MARKDOWN,
     )
+
 
 @dp.message_handler(commands=["start"])
 async def start_message(message: types.Message):
@@ -433,12 +495,13 @@ async def start_message(message: types.Message):
             reply_markup=main_keyboard,
         )
         cursor.execute(
-            "INSERT INTO Users (user_id, name, nickname, coins) VALUES(?, ?, ?, ?)",
+            "INSERT INTO Users (user_id, name, nickname, coins, isbanned) VALUES(?, ?, ?, ?, ?)",
             (
                 message.from_user.id,
                 message.from_user.first_name,
                 message.from_user.username,
                 STARTING_COINS,
+                NOT_BANNED,
             ),
         )
         connection.commit()
@@ -461,14 +524,16 @@ async def display_coins(message: types.Message):
     user_id = message.from_user.id
     cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
     coins = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM Books WHERE user_id={user_id} AND (book_status={ONLIST} OR book_status={ONWAIT})")
+    cursor.execute(
+        f"SELECT COUNT(*) FROM Books WHERE user_id={user_id} AND (book_status={ONLIST} OR book_status={ONWAIT})"
+    )
     my_books_count = int(cursor.fetchone()[0])
     connection.close()
 
     message_text = md.text(
         md.text(f"Cейчас у тебя: *{coins}* Book Coin"),
         md.text("Поделись книжками чтобы получить больше Book Coin"),
-        sep="\n"
+        sep="\n",
     )
     await message.answer(message_text, parse_mode=ParseMode.MARKDOWN)
 
@@ -488,12 +553,10 @@ async def all_users_mailing_2(message: types.Message, state: FSMContext):
     user_ids = cursor.fetchall()
     for user_id in user_ids:
         await bot.send_message(
-            chat_id=user_id[0],
-            text=message.text,
-            entities=message.entities
+            chat_id=user_id[0], text=message.text, entities=message.entities
         )
         print(f"LOG:admin_send_message:to_dest:{user_id}")
-        #await bot.send_message(chat_id=user_id[0], text=mailing)
+        # await bot.send_message(chat_id=user_id[0], text=mailing)
     connection.close()
     await state.finish()
 
@@ -531,7 +594,9 @@ async def listing_all(message: types.Message, page=0):
 
     book_info = cursor.fetchone()
     if not book_info:
-        await message.answer("Нет активных объявлений, скорее поделись книжкой с товарищами!")
+        await message.answer(
+            "Нет активных объявлений, скорее поделись книжкой с товарищами!"
+        )
         connection.close()
         return
 
@@ -662,8 +727,20 @@ async def go_to_page(callback: types.CallbackQuery):
 
 @dp.message_handler(Text(equals="Поделиться книгой"))
 async def listing_start(message: types.Message):
-    await Create_Listing.book_name.set()
-    await message.reply("Введите название книги")
+    connection = sqlite3.connect("books.db")
+    cursor = connection.cursor()
+
+    cursor.execute(
+        "SELECT isbanned FROM Users WHERE user_id=?", (message.from_user.id,)
+    )
+    isbanned = cursor.fetchone()[0]
+
+    connection.close()
+    if isbanned:
+        await message.answer("Вы забанены")
+    else:
+        await Create_Listing.book_name.set()
+        await message.reply("Введите название книги")
 
 
 @dp.message_handler(state=Create_Listing.book_name)
@@ -708,11 +785,11 @@ async def process_photos(message: types.Message, state: FSMContext):
             await bot.send_media_group(message.from_user.id, media)
 
     keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Да! Добавить книгу в библиотеку", callback_data="button1"))
-    keyboard.add(InlineKeyboardButton("Нет, хочу переделать", callback_data="button2"))
-    await message.answer(
-        "Тебе нравится?", reply_markup=keyboard
+    keyboard.add(
+        InlineKeyboardButton("Да! Добавить книгу в библиотеку", callback_data="button1")
     )
+    keyboard.add(InlineKeyboardButton("Нет, хочу переделать", callback_data="button2"))
+    await message.answer("Тебе нравится?", reply_markup=keyboard)
 
     await Create_Listing.book_accept.set()
 
@@ -746,7 +823,9 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
             connection.commit()
             connection.close()
     elif button_data == "button2":
-        await bot.send_message(user_id, "Публикация отменена. Попробуй снова через «Поделиться книгой»")
+        await bot.send_message(
+            user_id, "Публикация отменена. Попробуй снова через «Поделиться книгой»"
+        )
 
     await state.finish()
 
@@ -773,10 +852,11 @@ async def take_book(callback: types.CallbackQuery):
         book_owner_name,
         book_owner_nickname,
         book_owner_coins,
+        book_owner_isbanned,
     ) = book_owner_info
     cursor.execute(f"SELECT * from Users WHERE user_id={user_id}")
     user_info = cursor.fetchone()
-    user_dbid, user_id, user_name, user_nickname, user_coins = user_info
+    user_dbid, user_id, user_name, user_nickname, user_coins, isbanned = user_info
 
     if book_owner_id == user_id:
         user_message_text = md.text(
@@ -808,7 +888,9 @@ async def take_book(callback: types.CallbackQuery):
             md.text(
                 f"Напиши ему, чтобы договориться о встрече: @{book_owner_nickname}"
             ),
-            md.text(f"Сейчас на твоем счету {user_coins} Book Coin, они спишутся, когда владелец книги подтвердит обмен"),
+            md.text(
+                f"Сейчас на твоем счету {user_coins} Book Coin, они спишутся, когда владелец книги подтвердит обмен"
+            ),
             md.text(
                 f"\nЧтобы заработать больше Book Coin'ов ты можешь поделиться книгой с другими читателями!"
             ),
@@ -921,18 +1003,17 @@ async def handle_transfer_response(callback: types.CallbackQuery):
 @dp.callback_query_handler(lambda callback: callback.data.split("|")[0] in ["DELETE"])
 async def delete_book(callback: types.CallbackQuery):
     book_id = callback.data.split("|")[1]
-    message_text = md.text(
-        md.text("Подтверди удаление книги")
-    )
+    message_text = md.text(md.text("Подтверди удаление книги"))
     kb = InlineKeyboardMarkup()
     kb.add(InlineKeyboardButton("Отмена", callback_data="CANCEL_DELETION"))
-    kb.add(InlineKeyboardButton("Подтвердить", callback_data=F"ACCEPT_DELETION|{book_id}"))
+    kb.add(
+        InlineKeyboardButton("Подтвердить", callback_data=f"ACCEPT_DELETION|{book_id}")
+    )
     await bot.send_message(
-        chat_id=callback.from_user.id,
-        text=message_text,
-        reply_markup=kb
+        chat_id=callback.from_user.id, text=message_text, reply_markup=kb
     )
     await Delete_book.accept.set()
+
 
 @dp.callback_query_handler(state=Delete_book.accept)
 async def delete_book_accept(callback: types.CallbackQuery, state: FSMContext):
@@ -949,13 +1030,15 @@ async def delete_book_accept(callback: types.CallbackQuery, state: FSMContext):
         connection.close()
         message_text = md.text(
             md.text("Теперь эта книга больше не будет показываться другими читателям."),
-            md.text("Ты по-прежнему можешь делиться книжной мудростью с помощью кнопки _\"Поделиться книгой\"_"),
-            sep="\n"
+            md.text(
+                'Ты по-прежнему можешь делиться книжной мудростью с помощью кнопки _"Поделиться книгой"_'
+            ),
+            sep="\n",
         )
         await bot.send_message(
             chat_id=callback.from_user.id,
             text=message_text,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
         )
     if command == "CANCEL_DELETION":
         message_text = md.text(
@@ -964,9 +1047,38 @@ async def delete_book_accept(callback: types.CallbackQuery, state: FSMContext):
         await bot.send_message(
             chat_id=callback.from_user.id,
             text=message_text,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
         )
     await state.finish()
+
+
+@dp.message_handler(commands="admin_ban")
+async def ban_user(message: types.Message):
+    banned_user_id = message.get_args()
+    await ban_user_handle(message.from_user.id, banned_user_id)
+
+
+async def ban_user_handle(user_id, banned_user_id):
+    if user_id not in ADMIN_IDS:
+        await bot.send_message("Вы не админ :)")
+    else:
+        connection = sqlite3.connect("books.db")
+        cursor = connection.cursor()
+
+        cursor.execute(
+            "UPDATE Users SET isbanned=? WHERE user_id=?", (BANNED, banned_user_id)
+        )
+        cursor.execute(
+            "UPDATE Books SET book_status=? WHERE user_id=?", (NOLIST, banned_user_id)
+        )
+
+        await bot.send_message(user_id, f"User {banned_user_id} был забанен")
+        await bot.send_message(
+            banned_user_id, "К сожалению, мы были вынуждены вас забанить"
+        )
+
+        connection.commit()
+        connection.close()
 
 
 # Начало поллинга
