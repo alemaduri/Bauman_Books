@@ -112,7 +112,7 @@ async def admin_listing_all(message: types.Message, page=0):
         book_desc,
         book_status,
     ) = book_info  # если у юзера нет книг - падает
-    cursor.execute(f"SELECT * FROM Users WHERE user_id={user_id}")
+    cursor.execute(f"SELECT * FROM Users WHERE user_id={owner_user_id}")
     owner_data = cursor.fetchone()
     (
         db_user_id,
@@ -183,7 +183,7 @@ async def admin_go_to_page(callback: types.CallbackQuery):
         book_desc,
         book_status,
     ) = book_info  # если у юзера нет книг - падает
-    cursor.execute(f"SELECT * FROM Users WHERE user_id={user_id}")
+    cursor.execute(f"SELECT * FROM Users WHERE user_id={owner_user_id}")
     owner_data = cursor.fetchone()
     (
         db_user_id,
@@ -291,7 +291,7 @@ async def admin_delete_book_accept(callback: types.CallbackQuery, state: FSMCont
             chat_id=owner_id, text=owner_message_text, parse_mode=ParseMode.MARKDOWN
         )
 
-        await ban_user_handle(callback.from_user.id, owner_id)
+        await ban_user_handle(callback.from_user.id, owner_id, "ban")
 
     if command == "ADMIN_CANCEL_DELETION":
         message_text = md.text(
@@ -1074,31 +1074,49 @@ async def delete_book_accept(callback: types.CallbackQuery, state: FSMContext):
     await state.finish()
 
 
-@dp.message_handler(commands="admin_ban")
+@dp.message_handler(commands=["admin_ban", "admin_unban"])
 async def ban_user(message: types.Message):
+    command_type = ""
+    if "/admin_ban" in message.text:
+        command_type = "bam"
+    elif "admin_unban" in message.text:
+        command_type = "unban"
     banned_user_id = message.get_args()
-    await ban_user_handle(message.from_user.id, banned_user_id)
+    await ban_user_handle(message.from_user.id, banned_user_id, command_type)
 
 
-async def ban_user_handle(user_id, banned_user_id):
+async def ban_user_handle(user_id, banned_user_id, command_type):
     if user_id not in ADMIN_IDS:
         await bot.send_message("Вы не админ :)")
     else:
         connection = sqlite3.connect("books.db")
         cursor = connection.cursor()
 
-        cursor.execute(
-            "UPDATE Users SET isbanned=? WHERE user_id=?", (BANNED, banned_user_id)
-        )
-        cursor.execute(
-            "UPDATE Books SET book_status=? WHERE user_id=?", (NOLIST, banned_user_id)
-        )
+        if command_type == "ban":
+            cursor.execute(
+                "UPDATE Users SET isbanned=? WHERE user_id=?", (BANNED, banned_user_id)
+            )
+            cursor.execute(
+                "UPDATE Books SET book_status=? WHERE user_id=?",
+                (NOLIST, banned_user_id),
+            )
 
-        await bot.send_message(user_id, f"User {banned_user_id} был забанен")
-        await bot.send_message(
-            banned_user_id, "К сожалению, мы были вынуждены вас забанить"
-        )
+            await bot.send_message(user_id, f"User {banned_user_id} был забанен")
+            await bot.send_message(
+                banned_user_id, "К сожалению, мы были вынуждены вас забанить"
+            )
+        elif command_type == "unban":
+            cursor.execute(
+                "UPDATE Users SET isbanned=? WHERE user_id=?",
+                (NOT_BANNED, banned_user_id),
+            )
+            cursor.execute(
+                "UPDATE Books SET book_status=? WHERE user_id=?",
+                (ONLIST, banned_user_id),
+            )
 
+            await bot.send_message(user_id, f"User {banned_user_id} был разбанен")
+            await bot.send_message(banned_user_id, "Вы были разбанены")
         connection.commit()
         connection.close()
 
