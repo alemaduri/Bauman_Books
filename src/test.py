@@ -81,6 +81,9 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 
 @dp.message_handler(commands=["admin_all_books"])
 async def admin_listing_all(message: types.Message, page=0):
+    if user_id not in ADMIN_IDS:
+        await bot.send_message("Вы не админ :)")
+        return
     command = "ADMIN_GOTOPAGE"
     user_id = message.from_user.id
     connection = sqlite3.connect("books.db")
@@ -111,7 +114,7 @@ async def admin_listing_all(message: types.Message, page=0):
         book_name,
         book_desc,
         book_status,
-    ) = book_info  # если у юзера нет книг - падает
+    ) = book_info
     cursor.execute(f"SELECT * FROM Users WHERE user_id={owner_user_id}")
     owner_data = cursor.fetchone()
     (
@@ -182,7 +185,7 @@ async def admin_go_to_page(callback: types.CallbackQuery):
         book_name,
         book_desc,
         book_status,
-    ) = book_info  # если у юзера нет книг - падает
+    ) = book_info
     cursor.execute(f"SELECT * FROM Users WHERE user_id={owner_user_id}")
     owner_data = cursor.fetchone()
     (
@@ -410,7 +413,7 @@ async def my_books_command(message: types.Message, page=0):
         book_name,
         book_desc,
         book_status,
-    ) = book_info  # если у юзера нет книг - падает
+    ) = book_info
 
     catalogue_keyboard = types.InlineKeyboardMarkup()
     catalogue_keyboard.add(
@@ -510,13 +513,6 @@ async def start_message(message: types.Message):
     # Добавление пользователя в базу данных
 
 
-# @dp.message_handler(commands=["end"])
-# async def end_run(message: types.Message):
-#     if message.from_user.id == 810121389:
-#         print("LOG: Bot ended")
-#         dp.stop_polling()
-
-
 @dp.message_handler(Text(equals="Мои Book Coin"))
 async def display_coins(message: types.Message):
     connection = sqlite3.connect("books.db")
@@ -552,6 +548,9 @@ async def display_coins(message: types.Message):
 
 @dp.message_handler(commands="admin_send_message")
 async def all_users_mailing_1(message: types.Message):
+    if message.from_user.id not in ADMIN_IDS:
+        await bot.send_message("Вы не админ :)")
+        return
     await Mailing.next_state.set()
 
 
@@ -568,7 +567,6 @@ async def all_users_mailing_2(message: types.Message, state: FSMContext):
             chat_id=user_id[0], text=message.text, entities=message.entities
         )
         print(f"LOG:admin_send_message:to_dest:{user_id}")
-        # await bot.send_message(chat_id=user_id[0], text=mailing)
     connection.close()
     await state.finish()
 
@@ -628,7 +626,7 @@ async def listing_all(message: types.Message, page=0):
         book_name,
         book_desc,
         book_status,
-    ) = book_info  # если у юзера нет книг - падает
+    ) = book_info
 
     catalogue_keyboard = types.InlineKeyboardMarkup()
     if command == "ALL_GOTOPAGE":
