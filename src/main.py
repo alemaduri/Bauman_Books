@@ -1160,4 +1160,5 @@ if __name__ == "__main__":
         cursor.execute(f"CREATE TABLE Books (book_id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,book_name TEXT,description TEXT,book_status INTEGER,FOREIGN KEY (user_id) REFERENCES Users (user_id) ON DELETE CASCADE)")
         connection.commit()
         connection.close()
+        
     asyncio.run(main())
