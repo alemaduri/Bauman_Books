@@ -323,7 +323,10 @@ async def info_message(message: types.Message):
             "_Со старта мы дарим тебе 1 единицу_ *Book Coin*_, потому что видим в тебе потенциал читателя._"
         ),
         md.text(
-            "_Это позволит попробовать Bauman Books абсолютно безвозмездно, но потом тоже нужно будет делиться, чтобы система не рухнула!_"
+            "_Это позволит попробовать Bauman Books абсолютно безвозмездно, но потом тоже нужно будет делиться, чтобы система не рухнула!_\n"
+        ),
+        md.text(
+            "Мы стремимся сделать бота лучше. Если у тебя возникли ошибки или предложения по улучшению, ты можешь написать разработчикам:\n@maleyungthug\n@TeaWithMilkAndSugar"
         ),
         sep="\n",
     )
@@ -454,6 +457,9 @@ async def start_message(message: types.Message):
         md.text("/info - узнать больше о том, как устроен обмен"),
         md.text("/coins - посмотреть количество Book Coin"),
         md.text("/mine - посмотреть свои обьявления"),
+        md.text(
+            "Мы стремимся сделать бота лучше. Если у тебя возникли ошибки или предложения по улучшению, ты можешь написать разработчикам:\n@maleyungthug\n@TeaWithMilkAndSugar"
+        ),
         # md.text("/finish - заверешение отправки сообщений в режиме создания объявлений"),
         sep="\n",
     )
@@ -967,11 +973,11 @@ async def take_book(callback: types.CallbackQuery):
 
     else:
         message_text = md.text(
-            md.text("*У тебя не хватает Book Coins"),
+            md.text("У тебя не хватает *Book Coins*"),
             md.text(
                 f"\nЧтобы их заработать, делись своими книгами с другими читателями!"
             ),
-            md.text('Чтобы это сделать просто нажми кнопку __"Поделиться книгой"__'),
+            md.text('Чтобы это сделать просто нажми кнопку _"Поделиться книгой"_'),
             sep="\n",
         )
         await bot.send_message(
@@ -1165,5 +1171,5 @@ if __name__ == "__main__":
     #     cursor.execute(f"CREATE TABLE Books (book_id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,book_name TEXT,description TEXT,book_status INTEGER,FOREIGN KEY (user_id) REFERENCES Users (user_id) ON DELETE CASCADE)")
     #     connection.commit()
     #     connection.close()
-    
+
     asyncio.run(main())
