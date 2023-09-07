@@ -919,6 +919,9 @@ async def take_book(callback: types.CallbackQuery):
 
     if int(user_coins) > 0:
         cursor.execute(
+            "UPDATE Users SET coins = coins - 1 WHERE user_id=?", (user_id)
+        )
+        cursor.execute(
             "UPDATE Books SET book_status=? WHERE book_id=?", (ONWAIT, book_id)
         )
         connection.commit()
@@ -1039,6 +1042,9 @@ async def handle_transfer_response(callback: types.CallbackQuery):
     elif command == "CANCEL_TRANSFER":
         cursor.execute(
             "UPDATE Books SET book_status=? WHERE book_id=?", (ONLIST, book_id)
+        )
+        cursor.execute(
+            "UPDATE Users SET coins = coins + 1 WHERE user_id=?", (user_that_recieves_id)
         )
         await bot.send_message(curr_user_id, "Книга вернулась в каталог!")
         await bot.send_message(
