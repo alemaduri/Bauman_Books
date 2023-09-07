@@ -919,7 +919,7 @@ async def take_book(callback: types.CallbackQuery):
 
     if int(user_coins) > 0:
         cursor.execute(
-            "UPDATE Users SET coins = coins - 1 WHERE user_id=?", (user_id)
+            f"UPDATE Users SET coins = coins - 1 WHERE user_id={user_id}"
         )
         cursor.execute(
             "UPDATE Books SET book_status=? WHERE book_id=?", (ONWAIT, book_id)
@@ -933,7 +933,7 @@ async def take_book(callback: types.CallbackQuery):
                 f"Напиши ему, чтобы договориться о встрече: @{book_owner_nickname}"
             ),
             md.text(
-                f"Сейчас на твоем счету {user_coins} Book Coin, они спишутся, когда владелец книги подтвердит обмен"
+                f"Сейчас на твоем счету {user_coins - 1} Book Coin, если владелец книги не подтвердит обмен, то Book Coin вернется обратно на счет"
             ),
             md.text(
                 f"\nЧтобы заработать больше Book Coin'ов ты можешь поделиться книгой с другими читателями!"
