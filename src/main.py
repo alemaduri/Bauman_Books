@@ -959,13 +959,13 @@ async def take_book(callback: types.CallbackQuery):
         kb.add(
             InlineKeyboardButton(
                 text="Мы договорились",
-                callback_data=f"SUCCESS_TRANSFER|{book_id}|{user_id}|{book_name}",
+                callback_data=f"SUCCESS_TRANSFER|{book_id}|{user_id}",
             )
         )
         kb.add(
             InlineKeyboardButton(
                 text="Мы не договорились",
-                callback_data=f"CANCEL_TRANSFER|{book_id}|{user_id}|{book_name}",
+                callback_data=f"CANCEL_TRANSFER|{book_id}|{user_id}|",
             )
         )
         await bot.send_message(
@@ -1000,10 +1000,15 @@ async def handle_transfer_response(callback: types.CallbackQuery):
     command = callback_data[0]
     book_id = callback_data[1]
     user_that_recieves_id = callback_data[2]
-    book_name = callback_data[3]
-    curr_user_id = callback.from_user.id
+    
+
     connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
+
+    cursor.execute(f"SELECT book_name FROM Books WHERE book_id={book_id}")
+    book_name = cursor.fetchone()[0]
+
+    curr_user_id = callback.from_user.id
     cursor.execute(f"SELECT book_status FROM Books WHERE book_id={book_id}")
     book_status = cursor.fetchone()[0]
     if int(book_status) != ONWAIT:
