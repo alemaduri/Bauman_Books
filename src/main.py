@@ -920,9 +920,7 @@ async def take_book(callback: types.CallbackQuery):
         return
 
     if int(user_coins) > 0:
-        cursor.execute(
-            f"UPDATE Users SET coins=coins-1 WHERE user_id={user_id}"
-        )
+        cursor.execute(f"UPDATE Users SET coins=coins-1 WHERE user_id={user_id}")
         cursor.execute(
             "UPDATE Books SET book_status=? WHERE book_id=?", (ONWAIT, book_id)
         )
@@ -945,7 +943,7 @@ async def take_book(callback: types.CallbackQuery):
         )
         owner_message_text = md.text(
             md.text("Привет!"),
-            md.text(f"{user_name} хочет взять твою книгу \"{book_name}\"."),
+            md.text(f'{user_name} хочет взять твою книгу "{book_name}".'),
             md.text(
                 f"Скоро он напишет тебе, но ты, конечно, можешь написать первым: @{user_nickname}"
             ),
@@ -1157,9 +1155,27 @@ async def ban_user_handle(user_id, banned_user_id, command_type):
         connection.close()
 
 
+@dp.message_handler(commands="admin_sqlite")
+async def admin_sqlite_query(message: types.Message):
+    user_id = message.from_user.id
+    if user_id not in ADMIN_IDS:
+        message.answer("Вы не админ :)")
+        return
+
+    sqlite_query = ""
+    sqlite_query += message.get_args()
+    connection = sqlite3.connect(DB_PATH)
+    cursor = connection.cursor()
+
+    cursor.execute(sqlite_query)
+    connection.commit()
+    connection.close()
+
+
 # Начало поллинга
 async def main():
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     # try:
