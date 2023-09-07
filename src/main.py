@@ -22,6 +22,8 @@ NOT_BANNED = 0
 
 ADMIN_IDS = [430814010, 810121389, 673698210]
 
+DB_PATH = "/data/books.db"
+
 
 class Create_Listing(StatesGroup):
     book_name = State()
@@ -86,7 +88,7 @@ async def admin_listing_all(message: types.Message, page=0):
         await bot.send_message(user_id, "Вы не админ :)")
         return
     command = "ADMIN_GOTOPAGE"
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
 
@@ -164,7 +166,7 @@ async def admin_go_to_page(callback: types.CallbackQuery):
     command = callback.data.split("|")[0]
     page = int(callback.data.split("|")[1])
     user_id = callback.from_user.id
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
 
@@ -265,7 +267,7 @@ async def admin_delete_book_accept(callback: types.CallbackQuery, state: FSMCont
 
     if command == "ADMIN_ACCEPT_DELETION":
         book_id = callback.data.split("|")[1]
-        connection = sqlite3.connect("/data/books.db")
+        connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
         cursor.execute(f"SELECT book_name FROM Books WHERE book_id={book_id}")
         book_name = cursor.fetchone()[0]
@@ -362,7 +364,7 @@ async def info_message(message: types.Message):
 
 @dp.message_handler(commands=["coins"])
 async def display_coins_command(message: types.Message):
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     user_id = message.from_user.id
     cursor.execute("SELECT coins FROM Users WHERE user_id=?", (user_id,))
@@ -385,7 +387,7 @@ async def display_coins_command(message: types.Message):
 async def my_books_command(message: types.Message, page=0):
     command = "MY_GOTOPAGE"
     user_id = message.from_user.id
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     cursor.execute(
         f"SELECT COUNT(*) FROM Books WHERE user_id={user_id} AND book_status={ONLIST}"
@@ -473,7 +475,7 @@ async def start_message(message: types.Message):
         reply_markup=main_keyboard,
     )
 
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     cursor.execute(
         "SELECT EXISTS(SELECT 1 FROM Users WHERE user_id=?)", (message.from_user.id,)
@@ -493,7 +495,7 @@ async def start_message(message: types.Message):
             md.text(
                 "Чтобы получить Book Coin ты должен поделиться какой-нибдуь книгой с другими читателями. Так мы сохраняем баланс книг в сервисе"
             ),
-            md.text("Чтобы узанть больше пиши /info"),
+            md.text("Чтобы узнать больше - пиши /info"),
             sep="\n",
         )
         await bot.send_message(
@@ -520,7 +522,7 @@ async def start_message(message: types.Message):
 
 @dp.message_handler(Text(equals="Мои Book Coin"))
 async def display_coins(message: types.Message):
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
 
     user_id = message.from_user.id
@@ -563,7 +565,7 @@ async def all_users_mailing_1(message: types.Message):
 async def all_users_mailing_2(message: types.Message, state: FSMContext):
     print("LOG:admin_send_message")
     mailing = message.text
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     cursor.execute("SELECT DISTINCT user_id FROM Users")
     user_ids = cursor.fetchall()
@@ -583,7 +585,7 @@ async def listing_all(message: types.Message, page=0):
     if message.text == "Мои книги":
         command = "MY_GOTOPAGE"
     user_id = message.from_user.id
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     cursor.execute(
         "SELECT isbanned FROM Users WHERE user_id=?", (message.from_user.id,)
@@ -675,7 +677,7 @@ async def go_to_page(callback: types.CallbackQuery):
     command = callback.data.split("|")[0]
     page = int(callback.data.split("|")[1])
     user_id = callback.from_user.id
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     if command == "ALL_GOTOPAGE":
         cursor.execute(f"SELECT COUNT(*) FROM Books WHERE book_status={ONLIST}")
@@ -752,7 +754,7 @@ async def go_to_page(callback: types.CallbackQuery):
 
 @dp.message_handler(Text(equals="Поделиться книгой"))
 async def listing_start(message: types.Message):
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
 
     cursor.execute(
@@ -843,7 +845,7 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
     user_id = button.from_user.id
 
     if button_data == "button1":
-        connection = sqlite3.connect("/data/books.db")
+        connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
         await bot.send_message(user_id, "Объявление было добавлено")
         async with state.proxy() as data:
@@ -860,8 +862,8 @@ async def process_callback_buttons(button: types.CallbackQuery, state: FSMContex
                     "INSERT INTO Photos (book_id, photo_tg_id) VALUES(?, ?)",
                     (book_id, photo_tg_id),
                 )
-            connection.commit()
-            connection.close()
+        connection.commit()
+        connection.close()
     elif button_data == "button2":
         await bot.send_message(
             user_id, "Публикация отменена. Попробуй снова через «Поделиться книгой»"
@@ -879,7 +881,7 @@ async def take_book(callback: types.CallbackQuery):
     command = callback.data.split("|")[0]
     book_id = callback.data.split("|")[1]
     user_id = callback.from_user.id
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     cursor.execute(f"SELECT * FROM Books WHERE book_id={book_id}")
     book_info = cursor.fetchone()
@@ -919,7 +921,7 @@ async def take_book(callback: types.CallbackQuery):
 
     if int(user_coins) > 0:
         cursor.execute(
-            f"UPDATE Users SET coins = coins - 1 WHERE user_id={user_id}"
+            f"UPDATE Users SET coins=coins-1 WHERE user_id={user_id}"
         )
         cursor.execute(
             "UPDATE Books SET book_status=? WHERE book_id=?", (ONWAIT, book_id)
@@ -943,7 +945,7 @@ async def take_book(callback: types.CallbackQuery):
         )
         owner_message_text = md.text(
             md.text("Привет!"),
-            md.text(f"{user_name} хочет взять твою книгу."),
+            md.text(f"{user_name} хочет взять твою книгу \"{book_name}\"."),
             md.text(
                 f"Скоро он напишет тебе, но ты, конечно, можешь написать первым: @{user_nickname}"
             ),
@@ -1002,7 +1004,7 @@ async def handle_transfer_response(callback: types.CallbackQuery):
     user_that_recieves_id = callback_data[2]
     book_name = callback_data[3]
     curr_user_id = callback.from_user.id
-    connection = sqlite3.connect("/data/books.db")
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
     cursor.execute(f"SELECT book_status FROM Books WHERE book_id={book_id}")
     book_status = cursor.fetchone()[0]
@@ -1024,10 +1026,7 @@ async def handle_transfer_response(callback: types.CallbackQuery):
             "UPDATE Users SET coins=? WHERE user_id=?",
             (coins_curr_user + 1, curr_user_id),
         )
-        cursor.execute(
-            "UPDATE Users SET coins=? WHERE user_id=?",
-            (coins_user_that_recieves - 1, user_that_recieves_id),
-        )
+
         await bot.send_message(
             curr_user_id,
             f"Поздравляем! Вы отдали книгу *{book_name}*!",
@@ -1044,12 +1043,12 @@ async def handle_transfer_response(callback: types.CallbackQuery):
             "UPDATE Books SET book_status=? WHERE book_id=?", (ONLIST, book_id)
         )
         cursor.execute(
-            "UPDATE Users SET coins = coins + 1 WHERE user_id=?", (user_that_recieves_id)
+            f"UPDATE Users SET coins = coins + 1 WHERE user_id={user_that_recieves_id}"
         )
         await bot.send_message(curr_user_id, "Книга вернулась в каталог!")
         await bot.send_message(
             user_that_recieves_id,
-            f"Вы не смогли договориться по поводу книги *{book_name}* :(, мы вернули вам монету",
+            f"Вы не смогли договориться по поводу книги *{book_name}* \nBook Coin вернулся обратно на счёт",
             parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -1078,7 +1077,7 @@ async def delete_book_accept(callback: types.CallbackQuery, state: FSMContext):
 
     if command == "ACCEPT_DELETION":
         book_id = callback.data.split("|")[1]
-        connection = sqlite3.connect("/data/books.db")
+        connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
         cursor.execute(
             "UPDATE Books SET book_status=? WHERE book_id=?", (NOLIST, book_id)
@@ -1126,7 +1125,7 @@ async def ban_user_handle(user_id, banned_user_id, command_type):
     elif banned_user_id in ADMIN_IDS:
         await bot.send_message(user_id, "охуел???")
     else:
-        connection = sqlite3.connect("/data/books.db")
+        connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
 
         if command_type == "ban":
@@ -1164,14 +1163,14 @@ async def main():
 
 if __name__ == "__main__":
     # try:
-    #     connection = sqlite3.connect("/data/books.db")
+    #     connection = sqlite3.connect(DB_PATH)
     #     cursor = connection.cursor()
     #     cursor.execute("UPDATE Users SET coins=10 WHERE (nickname=\"maleyungthug\" OR nickname=\"dpilipp\" OR nickname=\"TeaWithMilkAndSugar\")")
     #     cursor.execute(f"SELECT * FROM Users")
     #     connection.commit()
     #     connection.close()
     # except:
-    #     connection = sqlite3.connect("/data/books.db")
+    #     connection = sqlite3.connect(DB_PATH)
     #     cursor = connection.cursor()
     #     cursor.execute(f"CREATE TABLE Photos (photo_id INTEGER PRIMARY KEY AUTOINCREMENT,book_id INTEGER,photo_tg_id TEXT,FOREIGN KEY (book_id) REFERENCES Books (book_id) ON DELETE CASCADE)")
     #     cursor.execute(f"CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,name TEXT,nickname TEXT,coins INTEGER, isbanned INTEGER)")
