@@ -506,8 +506,8 @@ async def start_message(message: types.Message):
             ),
         )
         connection.commit()
-        connection.close()
         print(f"LOG: new user ({message.from_user.id})")
+    connection.close()
     # Добавление пользователя в базу данных
 
 
@@ -907,6 +907,7 @@ async def take_book(callback: types.CallbackQuery):
             reply_markup=kb,
             parse_mode=ParseMode.MARKDOWN,
         )
+        connection.close()
         return
 
     if int(user_coins) > 0:
@@ -914,7 +915,7 @@ async def take_book(callback: types.CallbackQuery):
             "UPDATE Books SET book_status=? WHERE book_id=?", (ONWAIT, book_id)
         )
         connection.commit()
-
+        connection.close()
         user_message_text = md.text(
             md.text("*Отличный выбор!*"),
             md.text(f"Пока что, владелец книги - {book_owner_name}"),
@@ -1136,18 +1137,18 @@ async def ban_user_handle(user_id, banned_user_id, command_type):
 
 # Начало поллинга
 async def main():
-    try:
-        connection = sqlite3.connect("/data/books.db")
-        cursor = connection.cursor()
-        cursor.execute(f"SELECT * FROM Users")
-    except:
-        connection = sqlite3.connect("/data/books.db")
-        cursor = connection.cursor()
-        cursor.execute(f"CREATE TABLE Photos (photo_id INTEGER PRIMARY KEY AUTOINCREMENT,book_id INTEGER,photo_tg_id TEXT,FOREIGN KEY (book_id) REFERENCES Books (book_id) ON DELETE CASCADE)")
-        cursor.execute(f"CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,name TEXT,nickname TEXT,coins INTEGER, isbanned INTEGER)")
-        cursor.execute(f"CREATE TABLE Books (book_id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,book_name TEXT,description TEXT,book_status INTEGER,FOREIGN KEY (user_id) REFERENCES Users (user_id) ON DELETE CASCADE)")
-        connection.commit()
-        connection.close()
+    # try:
+    #     connection = sqlite3.connect("/data/books.db")
+    #     cursor = connection.cursor()
+    #     cursor.execute(f"SELECT * FROM Users")
+    # except:
+    #     connection = sqlite3.connect("/data/books.db")
+    #     cursor = connection.cursor()
+    #     cursor.execute(f"CREATE TABLE Photos (photo_id INTEGER PRIMARY KEY AUTOINCREMENT,book_id INTEGER,photo_tg_id TEXT,FOREIGN KEY (book_id) REFERENCES Books (book_id) ON DELETE CASCADE)")
+    #     cursor.execute(f"CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,name TEXT,nickname TEXT,coins INTEGER, isbanned INTEGER)")
+    #     cursor.execute(f"CREATE TABLE Books (book_id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,book_name TEXT,description TEXT,book_status INTEGER,FOREIGN KEY (user_id) REFERENCES Users (user_id) ON DELETE CASCADE)")
+    #     connection.commit()
+    #     connection.close()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
