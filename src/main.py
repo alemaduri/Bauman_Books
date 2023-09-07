@@ -232,7 +232,6 @@ async def admin_go_to_page(callback: types.CallbackQuery):
         chat_id=callback.from_user.id,
         caption=caption,
         message_id=callback.message.message_id,
-        parse_mode=ParseMode.MARKDOWN,
     )
 
     await bot.edit_message_reply_markup(
