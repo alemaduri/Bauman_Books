@@ -207,7 +207,7 @@ async def admin_go_to_page(callback: types.CallbackQuery):
     cursor.execute(f"SELECT photo_tg_id FROM Photos WHERE book_id={book_id}")
     photo_tg_id = cursor.fetchone()[0]
     connection.close()
-    caption_variable = md.text(f"Каталог книг: страница __{page+1}/{max_page}__\n")
+    caption_variable = md.text(f"Каталог книг: страница _{page+1}/{max_page}_\n")
     caption = md.text(
         md.text(f"ВЛАДЕЛЕЦ:{owner_name}\n"),
         md.text(f"TG: @{owner_nickname}\n"),
