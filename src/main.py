@@ -1150,6 +1150,7 @@ if __name__ == "__main__":
         cursor = connection.cursor()
         cursor.execute("UPDATE Users SET coins=10 WHERE (nickname=\"maleyungthug\" OR nickname=\"dpilipp\" OR nickname=\"TeaWithMilkAndSugar\")")
         cursor.execute(f"SELECT * FROM Users")
+        connection.commit()
         connection.close()
     except:
         connection = sqlite3.connect("/data/books.db")
