@@ -211,6 +211,7 @@ async def admin_go_to_page(callback: types.CallbackQuery):
     caption = md.text(
         md.text(f"ВЛАДЕЛЕЦ:{owner_name}\n"),
         md.text(f"TG: @{owner_nickname}\n"),
+        md.text(f"id: @{owner_user_id}\n"),
         md.text(f"*{book_name}*\n"),
         md.text(f"{book_desc}\n"),
         caption_variable,
