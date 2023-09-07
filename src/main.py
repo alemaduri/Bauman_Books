@@ -965,7 +965,7 @@ async def take_book(callback: types.CallbackQuery):
         kb.add(
             InlineKeyboardButton(
                 text="Мы не договорились",
-                callback_data=f"CANCEL_TRANSFER|{book_id}|{user_id}|",
+                callback_data=f"CANCEL_TRANSFER|{book_id}|{user_id}",
             )
         )
         await bot.send_message(
