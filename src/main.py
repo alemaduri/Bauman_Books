@@ -1028,6 +1028,8 @@ async def handle_transfer_response(callback: types.CallbackQuery):
             "UPDATE Users SET coins=? WHERE user_id=?",
             (coins_curr_user + 1, curr_user_id),
         )
+        connection.commit()
+        connection.close()
 
         await bot.send_message(
             curr_user_id,
@@ -1047,16 +1049,17 @@ async def handle_transfer_response(callback: types.CallbackQuery):
         cursor.execute(
             f"UPDATE Users SET coins = coins + 1 WHERE user_id={user_that_recieves_id}"
         )
+        connection.commit()
+        connection.close()
         await bot.send_message(curr_user_id, "Книга вернулась в каталог!")
         await bot.send_message(
             user_that_recieves_id,
             f"Вы не смогли договориться по поводу книги *{book_name}* \nBook Coin вернулся обратно на счёт",
             parse_mode=ParseMode.MARKDOWN,
         )
-
-    connection.commit()
-    connection.close()
-
+    else:
+        connection.commit()
+        connection.close()
 
 @dp.callback_query_handler(lambda callback: callback.data.split("|")[0] in ["DELETE"])
 async def delete_book(callback: types.CallbackQuery):
