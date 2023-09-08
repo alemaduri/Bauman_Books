@@ -1042,7 +1042,7 @@ async def handle_transfer_response(callback: types.CallbackQuery):
 
     elif command == "CANCEL_TRANSFER":
         cursor.execute(
-            "UPDATE Books SET book_status=? WHERE book_id=?", (ONLIST, book_id)
+            f"UPDATE Books SET book_status={ONLIST} WHERE book_id={book_id}"
         )
         cursor.execute(
             f"UPDATE Users SET coins = coins + 1 WHERE user_id={user_that_recieves_id}"
