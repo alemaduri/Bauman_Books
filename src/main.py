@@ -212,6 +212,8 @@ async def admin_go_to_page(callback: types.CallbackQuery):
         md.text(f"ВЛАДЕЛЕЦ:{owner_name}\n"),
         md.text(f"TG: @{owner_nickname}\n"),
         md.text(f"*{book_name} *\n"),
+        md.text(f"id: @{owner_user_id}\n"),
+        md.text(f"*{book_name}*\n"),
         md.text(f"{book_desc}\n"),
         caption_variable,
         sep="",
@@ -943,6 +945,7 @@ async def take_book(callback: types.CallbackQuery):
         owner_message_text = md.text(
             md.text("Привет!"),
             md.text(f'{user_name} хочет взять твою книгу "{book_name}".'),
+            md.text(f'{user_name} хочет взять твою книгу "{book_name}".'),
             md.text(
                 f"Скоро он напишет тебе, но ты, конечно, можешь написать первым: @{user_nickname}"
             ),
@@ -1160,6 +1163,23 @@ async def ban_user_handle(user_id, banned_user_id, command_type):
             await bot.send_message(banned_user_id, "Вы были разбанены")
         connection.commit()
         connection.close()
+
+
+@dp.message_handler(commands="admin_sqlite")
+async def admin_sqlite_query(message: types.Message):
+    user_id = message.from_user.id
+    if user_id not in ADMIN_IDS:
+        message.answer("Вы не админ :)")
+        return
+
+    sqlite_query = ""
+    sqlite_query += message.get_args()
+    connection = sqlite3.connect(DB_PATH)
+    cursor = connection.cursor()
+
+    cursor.execute(sqlite_query)
+    connection.commit()
+    connection.close()
 
 
 # Начало поллинга
